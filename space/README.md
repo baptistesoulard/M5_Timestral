@@ -8,18 +8,18 @@ sdk_version: 6.30.0
 app_file: app.py
 pinned: false
 license: apache-2.0
-short_description: Timestral de Mistral face au benchmark M5 Walmart
+short_description: Mistral's Timestral on the M5 Walmart forecasting benchmark
 ---
 
 # Timestral × M5 Walmart
 
-Démo interactive du modèle de fondation de séries temporelles **Timestral** (Mistral) sur le benchmark
-**M5 Walmart** : 42 840 séries de ventes quotidiennes, horizon 28 jours, période de test officielle.
+Interactive demo of **Timestral**, Mistral's time-series foundation model, on the **M5 Walmart** benchmark:
+42,840 daily sales series, 28-day horizon, official test period. The model is used zero-shot, on CPU.
 
-- **Explorer une série** : prévision en direct d'une série (total, magasin, rayon, article…), comparée au réel,
-  au naïf saisonnier, à AutoETS, à TSB et au vainqueur du concours ; lecture du niveau de service obtenu
-  en dimensionnant le stock sur un quantile.
-- **Mini-benchmark** : score WRMSSE / WSPL niveau par niveau sur un échantillon, en une à deux minutes.
-- **Vos données** : prévision ou backtest de vos propres séries (CSV).
+- **Explore a series**: live forecast of any series (total, store, department, item…) against actuals,
+  seasonal naive, AutoETS, TSB and the competition winner, plus the service level reached when stock is set
+  at a forecast quantile.
+- **Mini-benchmark**: WRMSSE / WSPL level by level on a sample, in one to two minutes.
+- **Your data**: forecast or backtest your own series (CSV).
 
-Code et benchmark complet : [github.com/baptistesoulard/M5_Timestral](https://github.com/baptistesoulard/M5_Timestral)
+Code and full benchmark: [github.com/baptistesoulard/M5_Timestral](https://github.com/baptistesoulard/M5_Timestral)
