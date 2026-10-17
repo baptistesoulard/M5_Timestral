@@ -15,6 +15,9 @@ for c in configs:
     for s in range(n):
         include.append({"config": c["name"], "model": c["model"], "covariates": c["covariates"], "shard": s,
                         "nshards": n, "probe": probe, "batch": 256 if big else 512})
+# longest jobs first, so they start while the 20-job concurrency limit is not reached
+cost = {c["name"]: c.get("probe_ms", 0) / max(1, int(c.get("shards", 1))) for c in configs}
+include.sort(key=lambda j: -cost.get(j["config"], 0))
 print("matrix=" + json.dumps({"include": include}))
 print("mode=" + mode)
 print("count=" + str(len(include)))
