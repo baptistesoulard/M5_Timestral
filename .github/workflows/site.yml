@@ -31,6 +31,7 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       mode: ${{ steps.plan.outputs.mode }}
       reuse_run: ${{ steps.plan.outputs.reuse_run }}
+      count: ${{ steps.plan.outputs.count }}
     steps:
       - uses: actions/checkout@v4
       - id: plan
@@ -38,7 +39,7 @@ jobs:
 
   forecast:
     needs: plan
-    if: ${{ needs.plan.outputs.matrix != '{"include": []}' }}
+    if: ${{ needs.plan.outputs.count != '0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 340
     strategy:

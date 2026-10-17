@@ -17,4 +17,5 @@ for c in configs:
                         "nshards": n, "probe": probe, "batch": 256 if big else 512})
 print("matrix=" + json.dumps({"include": include}))
 print("mode=" + mode)
+print("count=" + str(len(include)))
 print("reuse_run=" + str(run.get("reuse_run_id", "")))

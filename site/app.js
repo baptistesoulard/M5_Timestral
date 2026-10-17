@@ -25,6 +25,7 @@ function fpct(x, signed = false) {
   const s = (signed && v > 0 ? "+" : "") + v.toLocaleString(locale()).replace("-", "−");
   return S.lang === "fr" ? `${s} %` : `${s}%`;
 }
+const narrow = () => window.matchMedia("(max-width: 600px)").matches;
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -253,7 +254,7 @@ function drawForecast() {
   const muted = css("--muted");
   const shapes = [{ type: "line", x0: fx[0], x1: fx[0], yref: "paper", y0: 0, y1: 1, line: { color: muted, width: 1, dash: "dash" } }];
   const annotations = [{ x: fx[0], y: 1.02, yref: "paper", text: t("forecast_start"), showarrow: false, xanchor: "left", font: { size: 11, color: muted } }];
-  for (const [off, name] of S.meta.events) {
+  for (const [off, name] of narrow() ? [] : S.meta.events) {
     if (off >= H) annotations.push({ x: dayDate(off), y: 0.97, yref: "paper", text: esc(name), showarrow: false, textangle: -90, yanchor: "top", xshift: -6, font: { size: 9.5, color: muted } });
   }
   Plotly.react("chart", traces, plotLayout({
@@ -345,7 +346,8 @@ function renderBenchmark() {
       }
       return out;
     };
-    const xs = t("lv_names").map((n, k) => `${k + 1}. ${n}`);
+    const small = narrow();
+    const xs = small ? t("lv_names").map((_, k) => String(k + 1)) : t("lv_names").map((n, k) => `${k + 1}. ${n}`);
     const series = [];
     if (cfgs.length) {
       const best = cfgs.reduce((a, b) => (bestVariant(b).s < bestVariant(a).s ? b : a));
@@ -356,8 +358,14 @@ function renderBenchmark() {
     series.push({ name: methodLabel("tsb"), y: lvl("tsb", "", "bottom-up"), color: css("--c-tsb") });
     if (winner) series.push({ name: refLabel("winner"), y: lvl(winner[0], "", "bottom-up"), color: css("--c-winner") });
     Plotly.react("lv-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8 }, marker: { size: 6 } })),
-      plotLayout({ margin: { l: 52, r: 14, t: 16, b: 96 }, hovermode: "x unified", xaxis: { ...plotLayout().xaxis, tickangle: -35 },
-        yaxis: { ...plotLayout().yaxis, title: { text: "RMSSE", font: { size: 12, color: css("--muted") } } }, legend: { orientation: "h", y: 1.12, x: 0, font: { size: 11.5, color: css("--muted") } } }), plotConfig);
+      plotLayout({
+        margin: small ? { l: 44, r: 10, t: 10, b: 40 } : { l: 52, r: 14, t: 10, b: 110 }, hovermode: "x unified",
+        xaxis: { ...plotLayout().xaxis, tickangle: small ? 0 : -35, type: "category",
+          title: small ? { text: t("level"), font: { size: 12, color: css("--muted") } } : undefined },
+        yaxis: { ...plotLayout().yaxis, title: { text: "RMSSE", font: { size: 12, color: css("--muted") } } },
+        legend: small ? { orientation: "h", yanchor: "top", y: -0.22, x: 0, font: { size: 11, color: css("--muted") } }
+                      : { orientation: "v", x: 1.01, y: 1, font: { size: 11.5, color: css("--muted") } },
+      }), plotConfig);
   }
 
   // ablation
@@ -442,6 +450,7 @@ async function boot() {
     return;
   }
   $("status").hidden = true;
+  if (narrow()) { $("sel-days").value = "56"; $("days-out").textContent = "56"; }
   applyTexts();
   selectIndex(S.meta.examples[2] ? S.meta.examples[2].i : 0);
   renderBenchmark();
