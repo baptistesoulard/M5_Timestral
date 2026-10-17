@@ -1,0 +1,9 @@
+.git
+data
+forecasts
+results
+dist
+space
+__pycache__
+*.pyc
+.venv

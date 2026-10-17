@@ -820,5 +820,6 @@ with gr.Blocks(title="Timestral × M5") as demo:
 
 if __name__ == "__main__":
     demo.queue(default_concurrency_limit=2).launch(
-        server_name=os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0"), theme=gr.themes.Soft(primary_hue="orange"),
-        css=CSS)
+        server_name=os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0"),
+        server_port=int(os.environ.get("PORT", os.environ.get("GRADIO_SERVER_PORT", 7860))),
+        theme=gr.themes.Soft(primary_hue="orange"), css=CSS)

@@ -56,7 +56,21 @@ pip install gradio plotly
 python app.py                 # http://localhost:7860 (télécharge les données si besoin)
 ```
 
-### Mise en ligne sur Hugging Face Spaces (gratuit, CPU)
+### Mise en ligne sur Google Cloud Run (recommandé : gratuit pour une démo, payé à l'usage au-delà)
+
+Le `Dockerfile` construit l'appli avec les données M5 et les poids Timestral 5M et 28M intégrés.
+Dans la console Google Cloud : *Cloud Run* → *Déployer un conteneur* → *Déployer en continu depuis un dépôt*
+(ce repo GitHub, type de build *Dockerfile*), région `europe-west1`, accès public, 2 vCPU, 4 Gio de mémoire,
+0 instance minimum, 1 instance maximum, délai de requête 3 600 s, affinité de session activée.
+
+Ou en ligne de commande, depuis le dossier du repo :
+
+```bash
+gcloud run deploy timestral-m5 --source . --region europe-west1 --allow-unauthenticated \
+  --cpu 2 --memory 4Gi --min-instances 0 --max-instances 1 --timeout 3600 --session-affinity
+```
+
+### Mise en ligne sur Hugging Face Spaces (abonnement PRO requis)
 
 ```bash
 python build_space.py         # assemble dist/space/
