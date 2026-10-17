@@ -13,7 +13,7 @@ import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).parent
-FILES = ["app.py", "download_data.py", "run_baselines.py"]
+FILES = ["app.py", "app_texts.py", "download_data.py", "run_baselines.py"]
 DIRS = ["m5bench", "app_assets"]
 
 

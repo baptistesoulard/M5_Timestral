@@ -15,11 +15,13 @@ short_description: Mistral's Timestral on the M5 Walmart forecasting benchmark
 
 Interactive demo of **Timestral**, Mistral's time-series foundation model, on the **M5 Walmart** benchmark:
 42,840 daily sales series, 28-day horizon, official test period. The model is used zero-shot, on CPU.
+The app is available in **English and French** (follows the browser language, switch at the top).
 
-- **Explore a series**: live forecast of any series (total, store, department, item…) against actuals,
+- **Explore**: live forecast of any series (total, store, department, item…) against actuals,
   seasonal naive, AutoETS, TSB and the competition winner, plus the service level reached when stock is set
   at a forecast quantile.
-- **Mini-benchmark**: WRMSSE / WSPL level by level on a sample, in one to two minutes.
+- **Benchmark**: WRMSSE / WSPL level by level on a sample, in one to two minutes.
 - **Your data**: forecast or backtest your own series (CSV).
+- **Learn**: the M5 competition, time-series foundation models and Timestral, explained.
 
 Code and full benchmark: [github.com/baptistesoulard/M5_Timestral](https://github.com/baptistesoulard/M5_Timestral)

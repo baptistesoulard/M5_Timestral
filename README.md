@@ -44,10 +44,11 @@ AutoETS saisonnier, proche d'un Holt-Winters type SAP IBP, est la meilleure mét
 
 ## Appli de démo
 
-`app.py` est une appli web (Gradio) en français qui fait tourner Timestral en direct :
+`app.py` est une appli web (Gradio) bilingue, anglais et français (langue du navigateur par défaut, bascule en haut de page), qui fait tourner Timestral en direct. Les textes sont dans `app_texts.py`.
 
 - **Explorer une série** : n'importe quelle série des 12 niveaux, prévue à la demande, avec bandes de quantiles, réel, naïf saisonnier, TSB, AutoETS et vainqueur du concours ; KPI et lecture « niveau de service » (stock dimensionné sur un quantile).
 - **Mini-benchmark** : WRMSSE et WSPL niveau par niveau sur les 154 séries agrégées et un échantillon d'articles, en une à deux minutes ; classement complet en dessous.
+- **Comprendre** : le concours M5, les modèles de fondation pour séries temporelles et Timestral.
 - **Vos données** : un CSV (une colonne date + une colonne par série, ou `serie, date, valeur`), en prévision ou en backtest, avec export des quantiles.
 
 ```bash
