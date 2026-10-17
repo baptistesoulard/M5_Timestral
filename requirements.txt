@@ -3,4 +3,6 @@ pandas>=2.0
 scipy>=1.10
 torch>=2.4
 timestral @ git+https://github.com/mistralai/timestral.git
+gradio>=6.0
+plotly>=5.20
 statsforecast>=1.7  # optionnel : baselines SES, Croston SBA, TSB, ADIDA, iMAPA, AutoETS

@@ -32,13 +32,9 @@ def fetch(url: str, dest: Path) -> None:
     urllib.request.urlretrieve(url, dest)
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--data", default="data")
-    ap.add_argument("--top", type=int, default=10, help="nombre de soumissions du classement à récupérer")
-    args = ap.parse_args()
-    data = Path(args.data)
-
+def ensure_data(data_dir: str | Path, top: int = 10) -> None:
+    """Télécharge ce qui manque : fichiers M5 et `top` soumissions de référence."""
+    data = Path(data_dir)
     if not all((data / f).exists() for f in FILES):
         archive = data / "m5.zip"
         fetch(f"{BASE}/datasets/m5.zip", archive)
@@ -46,8 +42,16 @@ def main() -> None:
             for f in FILES:
                 z.extract(f, data)
         archive.unlink()
-    for team in TEAMS[: args.top]:
+    for team in TEAMS[:top]:
         fetch(f"{BASE}/forecasts/{urllib.parse.quote(team)}.zip", data / "reference" / f"{team}.zip")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--data", default="data")
+    ap.add_argument("--top", type=int, default=10, help="nombre de soumissions du classement à récupérer")
+    args = ap.parse_args()
+    ensure_data(args.data, args.top)
     print("ok")
 
 

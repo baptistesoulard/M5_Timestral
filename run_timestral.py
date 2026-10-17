@@ -18,68 +18,23 @@ import time
 import numpy as np
 import torch
 
-from m5bench.data import HORIZON, LEVELS, calendar_covariates, level_slices, load_m5, mask_leading_zeros, \
-    series_relative_price, series_snap
+from m5bench.data import LEVELS, calendar_covariates, level_slices, load_m5
 from m5bench.metrics import interpolate_quantiles
 from m5bench.store import mean_from_quantiles, save_forecast
+from m5bench.timestral_runner import forecast_series, load_forecaster
 
 
-def load_forecaster(model: str, device: str):
-    from timestral import TimestralForecaster
-
-    if model == "tiny-random":  # mini-modèle aléatoire : sert uniquement à tester le code, pas à prévoir
-        from timestral import TimestralConfig, TimestralModel
-
-        knots = (0.01, 0.05) + tuple(round(0.1 * i, 1) for i in range(1, 10)) + (0.95, 0.99)
-        knots = tuple(sorted(set(knots) | {0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85}))
-        cfg = TimestralConfig(patch_size=32, d_model=32, num_heads=4, mlp_hidden_dim=64,
-                              block_schedule=("time", "time_variate"), quantile_knots=knots,
-                              block_size=4, context_length=4096)
-        torch.manual_seed(0)
-        m = TimestralModel(cfg)
-        for p in m.parameters():
-            torch.nn.init.normal_(p, std=0.02)
-        return TimestralForecaster(m.eval())
-    return TimestralForecaster.from_pretrained(model, device=device)
-
-
-def build_inputs(data, idx, history_all, cal, covariates: str, max_context: int | None):
-    t = history_all.shape[1]
-    start = 0 if max_context is None else max(0, t - max_context)
-    context = mask_leading_zeros(history_all[idx, start:])[:, None, :]  # (B, 1, L)
-    kwargs = {}
-    if covariates in ("calendar", "full"):
-        span = slice(start, t + HORIZON)
-        known = [series_snap(data, idx, cal["snap"])[:, span]]
-        if covariates == "full":
-            price = series_relative_price(data, idx)
-            if price is not None:
-                known.append(price[:, span])
-        kwargs["known_covariates"] = np.stack(known, axis=1).astype(np.float32)
-        cats = np.stack([cal["event"][span], cal["wday"][span]])  # (2, L + H)
-        kwargs["categorical_known_covariates"] = np.broadcast_to(cats, (len(idx),) + cats.shape).copy()
-    return context, kwargs
-
-
-def forecast_level(fc, data, idx, history_all, cal, args) -> np.ndarray:
-    out = None
+def forecast_level(fc, data, idx, history_all, cal, args):
     t0 = time.time()
-    for s in range(0, len(idx), args.batch_size):
-        b = idx[s : s + args.batch_size]
-        context, kwargs = build_inputs(data, b, history_all, cal, args.covariates, args.max_context)
-        res = fc.forecast(context, prediction_length=HORIZON, symmetric_averaging=not args.no_symmetric, **kwargs)
-        q = res.quantiles[:, 0].cpu().numpy()  # (B, H, Q)
-        if out is None:
-            out = np.empty((len(idx),) + q.shape[1:], dtype=np.float32)
-            levels = res.quantile_levels
-        out[s : s + len(b)] = q
-        done = s + len(b)
-        if len(idx) > args.batch_size:
+
+    def progress(done, total):
+        if total > args.batch_size:
             rate = (time.time() - t0) / done
-            print(f"\r    {done:>6}/{len(idx)} séries · reste ~{rate * (len(idx) - done) / 60:.1f} min", end="", flush=True)
-    if len(idx) > args.batch_size:
-        print()
-    return out, levels
+            end = "\n" if done == total else ""
+            print(f"\r    {done:>6}/{total} séries · reste ~{rate * (total - done) / 60:.1f} min", end=end, flush=True)
+
+    return forecast_series(fc, data, idx, history_all, cal, args.covariates, args.max_context,
+                           symmetric=not args.no_symmetric, batch_size=args.batch_size, progress=progress)
 
 
 def main() -> None:

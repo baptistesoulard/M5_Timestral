@@ -46,17 +46,21 @@ class M5Evaluator:
         for lvl, idx in self.slices.items():
             self.weights[idx] = self.dollars[idx] / self.dollars[idx].sum()
 
-    def rmsse(self, point_all: np.ndarray) -> np.ndarray:
-        mse = ((point_all.astype(np.float64) - self.actual) ** 2).mean(axis=1)
-        return np.sqrt(mse / self.scale_sq)
+    def rmsse(self, point: np.ndarray, idx: np.ndarray | None = None) -> np.ndarray:
+        """point : (42840, 28), ou (len(idx), 28) pour les séries `idx` seulement."""
+        sel = slice(None) if idx is None else idx
+        mse = ((point.astype(np.float64) - self.actual[sel]) ** 2).mean(axis=1)
+        return np.sqrt(mse / np.maximum(self.scale_sq[sel], 1e-12))
 
-    def spl(self, quantiles_all: np.ndarray, levels=M5_QUANTILES) -> np.ndarray:
-        """quantiles_all : (42840, 28, 9) aux niveaux M5_QUANTILES. Renvoie (42840,) moyenne sur les 9 quantiles."""
+    def spl(self, quantiles: np.ndarray, levels=M5_QUANTILES, idx: np.ndarray | None = None) -> np.ndarray:
+        """quantiles : (42840, 28, 9) aux niveaux M5_QUANTILES (ou (len(idx), 28, 9)).
+        Renvoie la SPL de chaque série, moyenne sur les 9 quantiles."""
+        sel = slice(None) if idx is None else idx
         u = np.asarray(levels)[None, None, :]
-        y = self.actual[:, :, None]
-        q = quantiles_all.astype(np.float64)
-        loss = np.where(q <= y, (y - q) * u, (q - y) * (1 - u)).mean(axis=1)  # (42840, 9)
-        return loss.mean(axis=1) / self.scale_abs
+        y = self.actual[sel][:, :, None]
+        q = quantiles.astype(np.float64)
+        loss = np.where(q <= y, (y - q) * u, (q - y) * (1 - u)).mean(axis=1)
+        return loss.mean(axis=1) / np.maximum(self.scale_abs[sel], 1e-12)
 
     def _by_level(self, per_series: np.ndarray, name: str) -> pd.DataFrame:
         rows = []

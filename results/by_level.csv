@@ -25,6 +25,19 @@ Level10,Article,3049,0.3549023363344723,quantiles empiriques jour de semaine (26
 Level11,Article × État,9147,0.32133602967265457,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
 Level12,Article × magasin,30490,0.30385819118440605,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
 Total,Moyenne 12 niveaux,42840,0.242842542944665,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level1,Total,1,0.43080015972605035,ets,,bottom-up,wrmsse
+Level2,État,3,0.5165680602634,ets,,bottom-up,wrmsse
+Level3,Magasin,10,0.580969821333369,ets,,bottom-up,wrmsse
+Level4,Catégorie,3,0.48243408087121814,ets,,bottom-up,wrmsse
+Level5,Rayon,7,0.5599725380462943,ets,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.5802022225930624,ets,,bottom-up,wrmsse
+Level7,État × rayon,21,0.6555229307981489,ets,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.6439545758578333,ets,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.7281288921268985,ets,,bottom-up,wrmsse
+Level10,Article,3049,1.0106016797028605,ets,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9682174123326419,ets,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.9138272403236646,ets,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.672599967831287,ets,,bottom-up,wrmsse
 Level1,Total,1,0.9092074706700285,imapa,,bottom-up,wrmsse
 Level2,État,3,0.925110758008125,imapa,,bottom-up,wrmsse
 Level3,Magasin,10,0.9317084448279507,imapa,,bottom-up,wrmsse

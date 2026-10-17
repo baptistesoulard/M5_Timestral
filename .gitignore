@@ -4,3 +4,4 @@ forecasts/*.npz
 __pycache__/
 .venv/
 *.pyc
+dist/

@@ -2,6 +2,7 @@ méthode,famille,variante,agrégation,métrique,score,durée_s
 M5 #1 YJ_STU,concours M5,,bottom-up,wrmsse,0.520437549558861,
 M5 #2 Matthias,concours M5,,bottom-up,wrmsse,0.5281650133480695,
 M5 #10 DenisKokosinskiy_STU,concours M5,,bottom-up,wrmsse,0.5474705675051088,
+ets,benchmark,,bottom-up,wrmsse,0.672599967831287,
 snaive,benchmark,,bottom-up,wrmsse,0.8470173213541706,
 ma28,benchmark,,bottom-up,wrmsse,0.9461625975679104,
 tsb,benchmark,,bottom-up,wrmsse,0.9536064336670366,

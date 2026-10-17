@@ -1,0 +1,170 @@
+level,niveau,n_series,score,méthode,variante,agrégation,métrique
+Level1,Total,1,0.9015078234299881,adida,,bottom-up,wrmsse
+Level2,État,3,0.9170021460793881,adida,,bottom-up,wrmsse
+Level3,Magasin,10,0.9243252142249553,adida,,bottom-up,wrmsse
+Level4,Catégorie,3,0.9117787599621383,adida,,bottom-up,wrmsse
+Level5,Rayon,7,0.9685650038700556,adida,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.9426936020282901,adida,,bottom-up,wrmsse
+Level7,État × rayon,21,0.9870274590064713,adida,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.9410757370629768,adida,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.9822900196238021,adida,,bottom-up,wrmsse
+Level10,Article,3049,1.0634468980881127,adida,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9928658256429851,adida,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.922289512060659,adida,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.9545723334233186,adida,,bottom-up,wrmsse
+Level1,Total,1,0.18757076045573143,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level2,État,3,0.203882416231608,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level3,Magasin,10,0.22342472168566213,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level4,Catégorie,3,0.19024577766257653,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level5,Rayon,7,0.22219005697044014,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level6,État × catégorie,9,0.20730330230915392,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level7,État × rayon,21,0.23188709127394763,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level8,Magasin × catégorie,30,0.2241872689927163,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level9,Magasin × rayon,70,0.24332256256261112,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level10,Article,3049,0.3549023363344723,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level11,Article × État,9147,0.32133602967265457,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level12,Article × magasin,30490,0.30385819118440605,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Total,Moyenne 12 niveaux,42840,0.242842542944665,quantiles empiriques jour de semaine (26 sem.),,direct,wspl
+Level1,Total,1,0.43080015972605035,ets,,bottom-up,wrmsse
+Level2,État,3,0.5165680602634,ets,,bottom-up,wrmsse
+Level3,Magasin,10,0.580969821333369,ets,,bottom-up,wrmsse
+Level4,Catégorie,3,0.48243408087121814,ets,,bottom-up,wrmsse
+Level5,Rayon,7,0.5599725380462943,ets,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.5802022225930624,ets,,bottom-up,wrmsse
+Level7,État × rayon,21,0.6555229307981489,ets,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.6439545758578333,ets,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.7281288921268985,ets,,bottom-up,wrmsse
+Level10,Article,3049,1.0106016797028605,ets,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9682174123326419,ets,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.9138272403236646,ets,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.672599967831287,ets,,bottom-up,wrmsse
+Level1,Total,1,0.9092074706700285,imapa,,bottom-up,wrmsse
+Level2,État,3,0.925110758008125,imapa,,bottom-up,wrmsse
+Level3,Magasin,10,0.9317084448279507,imapa,,bottom-up,wrmsse
+Level4,Catégorie,3,0.916790870004785,imapa,,bottom-up,wrmsse
+Level5,Rayon,7,0.972861627514896,imapa,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.9482734199214662,imapa,,bottom-up,wrmsse
+Level7,État × rayon,21,0.9915326069989232,imapa,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.9461805319659833,imapa,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.9862977538044434,imapa,,bottom-up,wrmsse
+Level10,Article,3049,1.0654316223591307,imapa,,bottom-up,wrmsse
+Level11,Article × État,9147,0.995507308177738,imapa,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.9252652413084812,imapa,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.9595139712968294,imapa,,bottom-up,wrmsse
+Level1,Total,1,0.8809600645187804,ma28,,bottom-up,wrmsse
+Level2,État,3,0.9011987739998805,ma28,,bottom-up,wrmsse
+Level3,Magasin,10,0.9128964625031488,ma28,,bottom-up,wrmsse
+Level4,Catégorie,3,0.892645231865333,ma28,,bottom-up,wrmsse
+Level5,Rayon,7,0.9669783222359682,ma28,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.9311609995787262,ma28,,bottom-up,wrmsse
+Level7,État × rayon,21,0.9849566434609636,ma28,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.9319843203917109,ma28,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.9799058668265475,ma28,,bottom-up,wrmsse
+Level10,Article,3049,1.060089267499601,ma28,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9894812835838626,ma28,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.921693934350404,ma28,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.9461625975679104,ma28,,bottom-up,wrmsse
+Level1,Total,1,1.9667960924982189,naive,,bottom-up,wrmsse
+Level2,État,3,1.9044055243406788,naive,,bottom-up,wrmsse
+Level3,Magasin,10,1.8796222528529822,naive,,bottom-up,wrmsse
+Level4,Catégorie,3,1.9469319302273402,naive,,bottom-up,wrmsse
+Level5,Rayon,7,1.9136244908961304,naive,,bottom-up,wrmsse
+Level6,État × catégorie,9,1.8805082522266354,naive,,bottom-up,wrmsse
+Level7,État × rayon,21,1.8783352071080301,naive,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,1.7981402410987164,naive,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,1.7641531936659796,naive,,bottom-up,wrmsse
+Level10,Article,3049,1.478620073247706,naive,,bottom-up,wrmsse
+Level11,Article × État,9147,1.3595516877215292,naive,,bottom-up,wrmsse
+Level12,Article × magasin,30490,1.2534319539904089,naive,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,1.7520100749895295,naive,,bottom-up,wrmsse
+Level1,Total,1,0.9015836315318941,sba,,bottom-up,wrmsse
+Level2,État,3,0.9172227703703117,sba,,bottom-up,wrmsse
+Level3,Magasin,10,0.9257147616634696,sba,,bottom-up,wrmsse
+Level4,Catégorie,3,0.9137878254008696,sba,,bottom-up,wrmsse
+Level5,Rayon,7,0.9828538976368097,sba,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.9426808511843425,sba,,bottom-up,wrmsse
+Level7,État × rayon,21,0.9933598640618392,sba,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.9404562541834571,sba,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.9828515332662027,sba,,bottom-up,wrmsse
+Level10,Article,3049,1.0726567480761129,sba,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9935638277233972,sba,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.9192414259634419,sba,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.9571644492551791,sba,,bottom-up,wrmsse
+Level1,Total,1,0.9070624960889414,ses,,bottom-up,wrmsse
+Level2,État,3,0.9253046382794553,ses,,bottom-up,wrmsse
+Level3,Magasin,10,0.9374921877810802,ses,,bottom-up,wrmsse
+Level4,Catégorie,3,0.9150967496108635,ses,,bottom-up,wrmsse
+Level5,Rayon,7,0.9732209028004706,ses,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.946631743213366,ses,,bottom-up,wrmsse
+Level7,État × rayon,21,0.9909317123820535,ses,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.9490978406160298,ses,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.9877835716230646,ses,,bottom-up,wrmsse
+Level10,Article,3049,1.0716331024727137,ses,,bottom-up,wrmsse
+Level11,Article × État,9147,1.0025788679096332,ses,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.9314886575584397,ses,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.9615268725280092,ses,,bottom-up,wrmsse
+Level1,Total,1,0.5600472118085318,snaive,,bottom-up,wrmsse
+Level2,État,3,0.6730500300367557,snaive,,bottom-up,wrmsse
+Level3,Magasin,10,0.7176055635004998,snaive,,bottom-up,wrmsse
+Level4,Catégorie,3,0.6229742855034599,snaive,,bottom-up,wrmsse
+Level5,Rayon,7,0.7081552448427261,snaive,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.7599911428984384,snaive,,bottom-up,wrmsse
+Level7,État × rayon,21,0.8291873961810151,snaive,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.8008352933449363,snaive,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.888125753238823,snaive,,bottom-up,wrmsse
+Level10,Article,3049,1.2233134027545913,snaive,,bottom-up,wrmsse
+Level11,Article × État,9147,1.2045034400991548,snaive,,bottom-up,wrmsse
+Level12,Article × magasin,30490,1.1764190920411155,snaive,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.8470173213541706,snaive,,bottom-up,wrmsse
+Level1,Total,1,0.9021454130959944,tsb,,bottom-up,wrmsse
+Level2,État,3,0.9155839560890491,tsb,,bottom-up,wrmsse
+Level3,Magasin,10,0.9206792325650235,tsb,,bottom-up,wrmsse
+Level4,Catégorie,3,0.9102490324075869,tsb,,bottom-up,wrmsse
+Level5,Rayon,7,0.9713196146596554,tsb,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.94488628716542,tsb,,bottom-up,wrmsse
+Level7,État × rayon,21,0.9896587574570372,tsb,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.9395011425204127,tsb,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.9813328885309162,tsb,,bottom-up,wrmsse
+Level10,Article,3049,1.0585284025294595,tsb,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9891682213415565,tsb,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.9202242556423279,tsb,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.9536064336670366,tsb,,bottom-up,wrmsse
+Level1,Total,1,0.1989309186635812,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level2,État,3,0.30973886741341344,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level3,Magasin,10,0.3996936993685038,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level4,Catégorie,3,0.2766380073047085,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level5,Rayon,7,0.3650703526256814,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.3896437390224206,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level7,État × rayon,21,0.4741342599392605,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.4799394545359505,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.57278871117137,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level10,Article,3049,0.9655813372484376,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9289308005638892,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.8841604468491144,M5 #1 YJ_STU,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.520437549558861,M5 #1 YJ_STU,,bottom-up,wrmsse
+Level1,Total,1,0.18590045944737604,M5 #2 Matthias,,bottom-up,wrmsse
+Level2,État,3,0.29388492115187215,M5 #2 Matthias,,bottom-up,wrmsse
+Level3,Magasin,10,0.4163792217112726,M5 #2 Matthias,,bottom-up,wrmsse
+Level4,Catégorie,3,0.24587237570842388,M5 #2 Matthias,,bottom-up,wrmsse
+Level5,Rayon,7,0.349167568850383,M5 #2 Matthias,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.3810003965664283,M5 #2 Matthias,,bottom-up,wrmsse
+Level7,État × rayon,21,0.4806341050756693,M5 #2 Matthias,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.496947353090807,M5 #2 Matthias,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.5936621679039273,M5 #2 Matthias,,bottom-up,wrmsse
+Level10,Article,3049,1.0231715648860376,M5 #2 Matthias,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9643267951263008,M5 #2 Matthias,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.9070332306583362,M5 #2 Matthias,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.5281650133480695,M5 #2 Matthias,,bottom-up,wrmsse
+Level1,Total,1,0.2940431738874662,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level2,État,3,0.3630286880097216,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level3,Magasin,10,0.41902229572094174,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level4,Catégorie,3,0.3414286890167388,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level5,Rayon,7,0.40146886078586264,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level6,État × catégorie,9,0.42874190625804665,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level7,État × rayon,21,0.4928818488761514,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level8,Magasin × catégorie,30,0.49381033214529035,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level9,Magasin × rayon,70,0.5811957108562466,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level10,Article,3049,0.954938029368531,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level11,Article × État,9147,0.9210504555938476,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Level12,Article × magasin,30490,0.8780368195424617,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse
+Total,Moyenne 12 niveaux,42840,0.5474705675051088,M5 #10 DenisKokosinskiy_STU,,bottom-up,wrmsse

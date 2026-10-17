@@ -1,0 +1,7 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4
+numpy>=1.24
+pandas>=2.0
+scipy>=1.10
+plotly>=5.20
+timestral @ git+https://github.com/mistralai/timestral.git

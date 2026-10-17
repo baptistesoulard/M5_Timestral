@@ -28,6 +28,7 @@ Scores obtenus avec ce code sur la période d'évaluation finale (plus bas = mei
 | M5 #1 YJ_STU (vainqueur) | 0,5204 |
 | M5 #2 Matthias | 0,5282 |
 | M5 #10 DenisKokosinskiy_STU | 0,5475 |
+| AutoETS saisonnier (7 jours) | 0,6726 |
 | Naïf saisonnier 7 jours | 0,8470 |
 | Moyenne mobile 28 jours | 0,9462 |
 | TSB | 0,9536 |
@@ -39,7 +40,31 @@ Scores obtenus avec ce code sur la période d'évaluation finale (plus bas = mei
 
 Piste incertitude : quantiles empiriques par jour de semaine (26 semaines) → **WSPL 0,2428**.
 
-Les méthodes « plates » (SES, Croston, moyenne mobile) font moins bien que le naïf saisonnier : en bottom-up, elles perdent la saisonnalité hebdomadaire, qui pèse lourd dans les niveaux agrégés.
+AutoETS saisonnier, proche d'un Holt-Winters type SAP IBP, est la meilleure méthode statistique. Les méthodes « plates » (SES, Croston, moyenne mobile) font moins bien que le naïf saisonnier : en bottom-up, elles perdent la saisonnalité hebdomadaire, qui pèse lourd dans les niveaux agrégés.
+
+## Appli de démo
+
+`app.py` est une appli web (Gradio) en français qui fait tourner Timestral en direct :
+
+- **Explorer une série** : n'importe quelle série des 12 niveaux, prévue à la demande, avec bandes de quantiles, réel, naïf saisonnier, TSB, AutoETS et vainqueur du concours ; KPI et lecture « niveau de service » (stock dimensionné sur un quantile).
+- **Mini-benchmark** : WRMSSE et WSPL niveau par niveau sur les 154 séries agrégées et un échantillon d'articles, en une à deux minutes ; classement complet en dessous.
+- **Vos données** : un CSV (une colonne date + une colonne par série, ou `serie, date, valeur`), en prévision ou en backtest, avec export des quantiles.
+
+```bash
+pip install gradio plotly
+python app.py                 # http://localhost:7860 (télécharge les données si besoin)
+```
+
+### Mise en ligne sur Hugging Face Spaces (gratuit, CPU)
+
+```bash
+python build_space.py         # assemble dist/space/
+pip install -U huggingface_hub
+huggingface-cli login
+huggingface-cli upload <compte>/timestral-m5 dist/space . --repo-type space
+```
+
+Ou depuis le site : *New Space* → SDK **Gradio** → matériel **CPU basic** → onglet *Files* → glisser le contenu de `dist/space/`. Le premier démarrage dure quelques minutes (installation, téléchargement des données M5 et des poids). Choisir un Space **privé** si la démo ne doit pas être publique.
 
 ## Installation
 
@@ -54,7 +79,7 @@ pip install -r requirements.txt
 # 1. Données M5 complètes (copie publique Nixtla, test inclus) + soumissions du top 10
 python download_data.py
 
-# 2. Benchmarks statistiques (quelques secondes ; --ets ajoute AutoETS, ~1 h)
+# 2. Benchmarks statistiques (quelques secondes ; --ets ajoute AutoETS, ~1 h sur 2 cœurs)
 python run_baselines.py --stats --ets
 
 # 3. Timestral : estimer d'abord la durée sur votre machine
@@ -67,6 +92,9 @@ python run_timestral.py --model mistralai/Timestral-28M --covariates full
 
 # 5. Scores
 python evaluate.py          # → results/scores.md, scores.csv, by_level.csv
+
+# 6. Mettre à jour le classement affiché par l'appli
+python build_app_assets.py
 ```
 
 ### Plan d'expériences conseillé
@@ -98,6 +126,9 @@ Options utiles : `--levels 12` (article × magasin seulement, piste précision u
 ## Structure
 
 ```
+app.py               appli de démo (Gradio)
+build_app_assets.py  prévisions de référence et classement embarqués dans l'appli
+build_space.py       dossier prêt à déposer sur Hugging Face Spaces
 download_data.py     données M5 + soumissions de référence
 run_baselines.py     benchmarks statistiques
 run_timestral.py     prévisions Timestral
@@ -105,6 +136,7 @@ evaluate.py          scores WRMSSE / WSPL par niveau
 m5bench/data.py      chargement, hiérarchie 12 niveaux, covariables
 m5bench/metrics.py   WRMSSE, WSPL, interpolation des quantiles
 m5bench/store.py     format des fichiers de prévision (forecasts/*.npz)
+m5bench/timestral_runner.py  chargement de Timestral et prévision par lots
 ```
 
 Sources : [Timestral (Mistral)](https://mistral.ai/news/timestral/) · [code d'inférence](https://github.com/mistralai/timestral) · [données et soumissions M5 (Nixtla)](https://github.com/Nixtla/m5-forecasts) · [concours M5 Accuracy (Kaggle)](https://www.kaggle.com/competitions/m5-forecasting-accuracy)
