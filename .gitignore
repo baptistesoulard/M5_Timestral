@@ -1,0 +1,6 @@
+data/*
+!data/.gitkeep
+forecasts/*.npz
+__pycache__/
+.venv/
+*.pyc

@@ -1,0 +1,13 @@
+méthode,famille,variante,agrégation,métrique,score,durée_s
+M5 #1 YJ_STU,concours M5,,bottom-up,wrmsse,0.520437549558861,
+M5 #2 Matthias,concours M5,,bottom-up,wrmsse,0.5281650133480695,
+M5 #10 DenisKokosinskiy_STU,concours M5,,bottom-up,wrmsse,0.5474705675051088,
+snaive,benchmark,,bottom-up,wrmsse,0.8470173213541706,
+ma28,benchmark,,bottom-up,wrmsse,0.9461625975679104,
+tsb,benchmark,,bottom-up,wrmsse,0.9536064336670366,
+adida,benchmark,,bottom-up,wrmsse,0.9545723334233186,
+sba,benchmark,,bottom-up,wrmsse,0.9571644492551791,
+imapa,benchmark,,bottom-up,wrmsse,0.9595139712968294,
+ses,benchmark,,bottom-up,wrmsse,0.9615268725280092,
+naive,benchmark,,bottom-up,wrmsse,1.7520100749895295,
+quantiles empiriques jour de semaine (26 sem.),benchmark,,direct,wspl,0.242842542944665,
