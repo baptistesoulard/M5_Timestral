@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timestral × M5 Walmart</title>
+<meta name="description" content="Mistral's Timestral time-series foundation model, zero-shot, on the 42,840 series of the M5 Walmart forecasting competition.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<link rel="stylesheet" href="style.css">
+<script src="vendor/plotly-basic-2.35.2.min.js" defer></script>
+<script src="i18n.js" defer></script>
+<script src="app.js" defer></script>
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap head-row">
+    <div class="head-text">
+      <h1 data-t="title">Timestral × M5 Walmart</h1>
+      <p class="subtitle" data-t="subtitle"></p>
+    </div>
+    <div class="lang" role="group" aria-label="Language / Langue">
+      <button type="button" data-lang="en" aria-pressed="true">EN</button>
+      <button type="button" data-lang="fr" aria-pressed="false">FR</button>
+    </div>
+  </div>
+  <nav class="wrap tabs" role="tablist">
+    <button type="button" role="tab" id="tab-explore" aria-controls="explore" aria-selected="true" data-t="tab_explore">Explore</button>
+    <button type="button" role="tab" id="tab-benchmark" aria-controls="benchmark" aria-selected="false" data-t="tab_bench">Benchmark</button>
+    <button type="button" role="tab" id="tab-learn" aria-controls="learn" aria-selected="false" data-t="tab_learn">Learn</button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <p id="status" class="status" data-t="loading">Loading data…</p>
+
+  <!-- ============================== explore -->
+  <section id="explore" role="tabpanel" aria-labelledby="tab-explore" hidden>
+    <details class="howto">
+      <summary data-t="how_title"></summary>
+      <div data-th="how_body"></div>
+    </details>
+    <div class="explore-grid">
+      <aside class="controls">
+        <div class="field">
+          <span class="label" data-t="examples"></span>
+          <div class="chips" id="examples"></div>
+        </div>
+        <label class="field"><span class="label" data-t="level"></span><select id="sel-level"></select></label>
+        <label class="field" id="f-loc"><span class="label" id="lbl-loc"></span><select id="sel-loc"></select></label>
+        <label class="field" id="f-prod"><span class="label" id="lbl-prod"></span><select id="sel-prod"></select></label>
+        <label class="field" id="f-dept"><span class="label" data-t="department"></span><select id="sel-dept"></select></label>
+        <label class="field" id="f-item"><span class="label" data-t="item"></span><select id="sel-item"></select></label>
+        <label class="field"><span class="label" data-t="config"></span><select id="sel-config"></select>
+          <span class="hint" id="cfg-hint"></span></label>
+        <fieldset class="field">
+          <legend class="label" data-t="compare"></legend>
+          <div id="compare" class="checks"></div>
+        </fieldset>
+        <label class="field"><span class="label"><span data-t="show_days"></span> · <output id="days-out">112</output> <span data-t="days"></span></span>
+          <input type="range" id="sel-days" min="28" max="364" step="7" value="112"></label>
+      </aside>
+      <div class="results">
+        <div class="kpis" id="kpis"></div>
+        <div class="card chart-card"><div id="chart" class="chart"></div></div>
+        <p class="reading" id="reading"></p>
+        <h3 class="table-title" data-t="table_title"></h3>
+        <div class="table-wrap"><table id="err-table" class="data"></table></div>
+        <section class="card svc">
+          <h3 data-t="svc_title"></h3>
+          <p class="muted" data-t="svc_body"></p>
+          <label class="field inline"><span class="label"><span data-t="svc_target"></span> · <output id="svc-out">90</output> %</span>
+            <input type="range" id="svc" min="50" max="99" step="1" value="90"></label>
+          <div class="kpis" id="svc-kpis"></div>
+          <div id="svc-chart" class="chart small"></div>
+        </section>
+        <p class="muted own-data" data-th="own_data"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== benchmark -->
+  <section id="benchmark" role="tabpanel" aria-labelledby="tab-benchmark" hidden>
+    <p class="lede" data-th="bench_intro"></p>
+    <div class="kpis" id="bench-kpis"></div>
+    <h2 data-t="lb_title"></h2>
+    <div class="table-wrap"><table id="lb-table" class="data"></table></div>
+    <h2 data-t="lv_title"></h2>
+    <p class="muted" data-t="lv_note"></p>
+    <div class="card chart-card"><div id="lv-chart" class="chart"></div></div>
+    <h2 data-t="ab_title"></h2>
+    <div class="table-wrap"><table id="ab-table" class="data"></table></div>
+    <p class="muted" id="ab-note"></p>
+  </section>
+
+  <!-- ============================== learn -->
+  <section id="learn" role="tabpanel" aria-labelledby="tab-learn" hidden>
+    <article class="prose" id="learn-body"></article>
+  </section>
+</main>
+
+<footer class="wrap site-foot">
+  <p id="foot-text"></p>
+  <p><a href="https://github.com/baptistesoulard/M5_Timestral" data-t="source">Source code and method</a> ·
+     <a href="https://mistral.ai/news/timestral/">Timestral (Mistral)</a> ·
+     <a href="https://www.kaggle.com/competitions/m5-forecasting-accuracy">M5 (Kaggle)</a></p>
+</footer>
+</body>
+</html>

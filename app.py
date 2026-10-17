@@ -110,7 +110,8 @@ def level_choices(lang):
 
 
 def cov_choices(lang):
-    return [(tr(lang, "cov_none"), "none"), (tr(lang, "cov_calendar"), "calendar"), (tr(lang, "cov_full"), "full")]
+    return [(tr(lang, "cov_none"), "none"), (tr(lang, "cov_calendar"), "calendar"), (tr(lang, "cov_full"), "full"),
+            (tr(lang, "cov_rich"), "rich")]
 
 
 def compare_choices(lang):

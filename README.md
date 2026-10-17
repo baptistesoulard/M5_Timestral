@@ -42,7 +42,20 @@ Piste incertitude : quantiles empiriques par jour de semaine (26 semaines) → *
 
 AutoETS saisonnier, proche d'un Holt-Winters type SAP IBP, est la meilleure méthode statistique. Les méthodes « plates » (SES, Croston, moyenne mobile) font moins bien que le naïf saisonnier : en bottom-up, elles perdent la saisonnalité hebdomadaire, qui pèse lourd dans les niveaux agrégés.
 
-## Appli de démo
+## Site public (GitHub Pages, gratuit)
+
+Le site public est statique : Timestral est exécuté une fois, gratuitement, sur les serveurs GitHub Actions
+(`.github/workflows/site.yml`), puis le site affiche les prévisions précalculées. Il est publié sur la branche
+`gh-pages` (adresse : `https://baptistesoulard.github.io/M5_Timestral/`).
+
+- `bench/configs.json` : configurations calculées (taille du modèle, covariables, nombre de jobs parallèles).
+- `bench/run.json` : `"mode": "probe"` pour un test rapide sur quelques centaines de séries, `"full"` pour le run complet et la publication ; `"only"` limite à certaines configurations, `"reuse_run_id"` réutilise les prévisions d'un run précédent.
+- Chaque push modifiant ces fichiers relance le calcul. Le rapport (scores, durées, erreurs) est écrit sur la branche `bench-results`.
+- Covariables testées : `none` (ventes seules), `calendar` (SNAP, événements, jour de semaine), `full` (+ prix relatif, niveaux article), `rich` (+ indice de prix, profondeur de remise, part d'articles en vente, jour du mois, jours avant / depuis un événement, fermeture de Noël, type d'événement, pour tous les niveaux).
+
+Le même calcul peut tourner sur un PC : `python export_static.py forecast …` puis `python export_static.py build`, le site est alors dans `public/`.
+
+## Appli de démo (locale)
 
 `app.py` est une appli web (Gradio) bilingue, anglais et français (langue du navigateur par défaut, bascule en haut de page), qui fait tourner Timestral en direct. Les textes sont dans `app_texts.py`.
 
@@ -56,7 +69,7 @@ pip install gradio plotly
 python app.py                 # http://localhost:7860 (télécharge les données si besoin)
 ```
 
-### Mise en ligne sur Google Cloud Run (recommandé : gratuit pour une démo, payé à l'usage au-delà)
+### Mise en ligne de l'appli interactive sur Google Cloud Run (gratuit pour une démo, payé à l'usage au-delà)
 
 Le `Dockerfile` construit l'appli avec les données M5 et les poids Timestral 5M et 28M intégrés.
 Dans la console Google Cloud : *Cloud Run* → *Déployer un conteneur* → *Déployer en continu depuis un dépôt*

@@ -43,7 +43,7 @@ def main() -> None:
     ap.add_argument("--out", default="forecasts")
     ap.add_argument("--model", default="mistralai/Timestral-28M",
                     help="dépôt Hugging Face (Timestral-5M/28M/123M/209M) ou dossier local")
-    ap.add_argument("--covariates", choices=["none", "calendar", "full"], default="calendar",
+    ap.add_argument("--covariates", choices=["none", "calendar", "full", "rich"], default="calendar",
                     help="none : ventes seules · calendar : SNAP, événements, jour de semaine · full : + prix relatif")
     ap.add_argument("--max-context", type=int, default=None, help="nb de jours d'historique (défaut : tout, 1941)")
     ap.add_argument("--levels", default="all", help="'all' (42 840 séries) ou '12' (article × magasin seulement)")

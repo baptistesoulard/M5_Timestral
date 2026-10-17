@@ -1,0 +1,156 @@
+name: Timestral forecasts and website
+
+# Runs Timestral on the 42,840 M5 series on free GitHub runners, scores the forecasts and publishes the
+# static website to the gh-pages branch. What runs is set in bench/run.json ("probe" = quick check on a
+# few hundred series, "full" = everything) and bench/configs.json (model sizes, covariates, shards).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "bench/**"
+      - "export_static.py"
+      - "m5bench/**"
+      - "site/**"
+      - "app_texts.py"
+      - ".github/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+  pages: read
+
+concurrency:
+  group: timestral-site
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      mode: ${{ steps.plan.outputs.mode }}
+      reuse_run: ${{ steps.plan.outputs.reuse_run }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: python3 .github/scripts/plan_matrix.py >> "$GITHUB_OUTPUT"
+
+  forecast:
+    needs: plan
+    if: ${{ needs.plan.outputs.matrix != '{"include": []}' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: ${{ matrix.config }} ${{ matrix.shard }}/${{ matrix.nshards }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (CPU-only PyTorch)
+        run: |
+          pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet -r requirements-site.txt
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: m5-data-v1
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ matrix.model }}-v1
+      - name: M5 data
+        run: python download_data.py --data data --top 0
+      - name: Forecast
+        run: >
+          python export_static.py forecast --config ${{ matrix.config }} --model ${{ matrix.model }}
+          --covariates ${{ matrix.covariates }} --shard ${{ matrix.shard }} --nshards ${{ matrix.nshards }}
+          --probe ${{ matrix.probe }} --batch-size ${{ matrix.batch }} --out parts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parts-${{ matrix.config }}-${{ matrix.shard }}
+          path: parts/
+          retention-days: 30
+          compression-level: 6
+
+  publish:
+    needs: [plan, forecast]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet numpy pandas scipy markdown
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: m5-data-v1
+      - run: python download_data.py --data data --top 0
+      - name: Shards from this run
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: parts-*
+          merge-multiple: true
+          path: parts
+      - name: Shards from an earlier run (bench/run.json "reuse_run_id")
+        if: ${{ needs.plan.outputs.reuse_run != '' }}
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: parts-*
+          merge-multiple: true
+          path: parts-reused
+          run-id: ${{ needs.plan.outputs.reuse_run }}
+          github-token: ${{ github.token }}
+      - name: Merge shards (this run wins)
+        run: |
+          mkdir -p parts
+          if [ -d parts-reused ]; then cp -n parts-reused/*.npz parts/ 2>/dev/null || true; fi
+          ls -la parts || true
+      - name: Speed and sanity summary
+        run: python .github/scripts/summarize_parts.py parts | tee summary.md
+      - name: Build website
+        if: ${{ needs.plan.outputs.mode == 'full' }}
+        run: python export_static.py build --parts parts --out public
+      - name: Publish website to gh-pages
+        if: ${{ needs.plan.outputs.mode == 'full' }}
+        run: |
+          cd public
+          git init -q -b gh-pages
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Website from ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+      - name: Report (bench-results branch)
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.run_id }}
+        run: |
+          mkdir -p report
+          cp summary.md report/ 2>/dev/null || true
+          cp public/data/summary.md report/scores.md 2>/dev/null || true
+          cp public/data/meta.json report/meta.json 2>/dev/null || true
+          echo "run ${RUN} · mode ${{ needs.plan.outputs.mode }} · forecast jobs: ${{ needs.forecast.result }} · commit ${GITHUB_SHA::7}" > report/status.txt
+          gh api "repos/${REPO}/actions/runs/${RUN}/jobs?per_page=100" --paginate \
+            --jq '.jobs[] | [.name, .status, (.conclusion // ""), .started_at, (.completed_at // "")] | @tsv' > report/jobs.tsv || true
+          for id in $(gh api "repos/${REPO}/actions/runs/${RUN}/jobs?per_page=100" --paginate --jq '.jobs[] | select(.conclusion=="failure") | .id'); do
+            echo "=== job ${id}" >> report/failed.log
+            gh api "repos/${REPO}/actions/jobs/${id}/logs" 2>&1 | tail -n 120 >> report/failed.log || true
+          done
+          gh api "repos/${REPO}/pages" > report/pages.json 2>&1 || true
+          cd report
+          git init -q -b bench-results
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Report for run ${RUN}"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${REPO}.git" bench-results
+      - name: Remove the temporary test branch
+        if: always()
+        run: git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" --delete wf-permission-test 2>/dev/null || true

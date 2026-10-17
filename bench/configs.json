@@ -1,0 +1,9 @@
+[
+  {"name": "t28m_none",      "model": "Timestral-28M",  "covariates": "none",     "shards": 2},
+  {"name": "t28m_calendar",  "model": "Timestral-28M",  "covariates": "calendar", "shards": 2},
+  {"name": "t28m_full",      "model": "Timestral-28M",  "covariates": "full",     "shards": 2},
+  {"name": "t28m_rich",      "model": "Timestral-28M",  "covariates": "rich",     "shards": 2},
+  {"name": "t209m_calendar", "model": "Timestral-209M", "covariates": "calendar", "shards": 8},
+  {"name": "t209m_rich",     "model": "Timestral-209M", "covariates": "rich",     "shards": 8},
+  {"name": "t5m_calendar",   "model": "Timestral-5M",   "covariates": "calendar", "shards": 1}
+]

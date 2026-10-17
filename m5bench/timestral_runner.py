@@ -1,11 +1,14 @@
-"""Chargement de Timestral et prévision d'un lot de séries M5 (utilisé par run_timestral.py et l'appli)."""
+"""Loading Timestral and forecasting a batch of M5 series (used by run_timestral.py, export_static.py and the app)."""
 
 from __future__ import annotations
+
+import os
 
 import numpy as np
 import torch
 
-from m5bench.data import HORIZON, mask_leading_zeros, series_relative_price, series_snap
+from m5bench.covariates import CovariateBank
+from m5bench.data import HORIZON, mask_leading_zeros
 
 MODELS = {
     "Timestral-5M": "mistralai/Timestral-5M",
@@ -14,11 +17,19 @@ MODELS = {
     "Timestral-209M": "mistralai/Timestral-209M",
 }
 
+_BANKS: dict[int, CovariateBank] = {}
+
+# Rows sent to the model per series (target + covariate rows). Timestral attends across the rows of one series
+# with a mask built over all rows of the batch, so memory and time grow with (batch × rows)²: the batch size is
+# capped so that batch × rows stays under ROW_BUDGET.
+ROWS_PER_SERIES = {"none": 1, "calendar": 4, "full": 5, "rich": 12}
+ROW_BUDGET = int(os.environ.get("TIMESTRAL_ROW_BUDGET", 512))
+
 
 def load_forecaster(model: str, device: str = "cpu"):
     from timestral import TimestralForecaster
 
-    if model == "tiny-random":  # mini-modèle aléatoire : sert uniquement à tester le code, pas à prévoir
+    if model == "tiny-random":  # small model with random weights: tests the code, not the forecasts
         from timestral import TimestralConfig, TimestralModel
 
         knots = (0.01, 0.05) + tuple(round(0.05 * i, 2) for i in range(2, 19)) + (0.95, 0.99)
@@ -33,29 +44,30 @@ def load_forecaster(model: str, device: str = "cpu"):
     return TimestralForecaster.from_pretrained(MODELS.get(model, model), device=device)
 
 
+def covariate_bank(data, cal=None) -> CovariateBank:
+    """One bank per dataset; `cal` may already be a bank (older call sites pass the calendar dict)."""
+    if isinstance(cal, CovariateBank):
+        return cal
+    key = id(data)
+    if key not in _BANKS:
+        _BANKS[key] = CovariateBank(data)
+    return _BANKS[key]
+
+
 def build_inputs(data, idx, history_all, cal, covariates: str, max_context: int | None):
-    """Contexte (B, 1, L) avec zéros de lancement masqués, et covariables connues sur l'horizon."""
+    """Context (B, 1, L) with launch zeros masked, and covariates known over history and horizon."""
     t = history_all.shape[1]
     start = 0 if max_context is None else max(0, t - max_context)
     context = mask_leading_zeros(history_all[idx, start:])[:, None, :]
-    kwargs = {}
-    if covariates in ("calendar", "full"):
-        span = slice(start, t + HORIZON)
-        known = [series_snap(data, idx, cal["snap"])[:, span]]
-        if covariates == "full":
-            price = series_relative_price(data, idx)
-            if price is not None:
-                known.append(price[:, span])
-        kwargs["known_covariates"] = np.stack(known, axis=1).astype(np.float32)
-        cats = np.stack([cal["event"][span], cal["wday"][span]])  # (2, L + H)
-        kwargs["categorical_known_covariates"] = np.broadcast_to(cats, (len(idx),) + cats.shape).copy()
+    kwargs = covariate_bank(data, cal).build(np.asarray(idx), covariates, start, t + HORIZON)
     return context, kwargs
 
 
 def forecast_series(fc, data, idx, history_all, cal, covariates="calendar", max_context=None,
                     symmetric=True, batch_size=256, progress=None):
-    """Quantiles (len(idx), 28, Q) et niveaux de quantiles. `progress(done, total)` est appelé à chaque lot."""
+    """Quantiles (len(idx), 28, Q) and quantile levels. `progress(done, total)` is called after each batch."""
     idx = np.asarray(idx)
+    batch_size = max(4, min(batch_size, ROW_BUDGET // ROWS_PER_SERIES.get(covariates, 1)))
     out, levels = None, None
     for s in range(0, len(idx), batch_size):
         b = idx[s : s + batch_size]
