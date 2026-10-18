@@ -130,7 +130,7 @@ input[type="range"] { accent-color: var(--accent); }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; min-width: 0; }
 .chart { width: 100%; height: 440px; }
 .chart.small { height: 300px; }
-#cal-chart { height: 360px; }
+#cal-chart { height: 400px; }
 .reading { margin: 0; max-width: 95ch; }
 .table-title { margin: 6px 0 0; font-size: 15px; }
 .svc { display: grid; gap: 10px; }
@@ -179,7 +179,7 @@ table.levels .num { text-align: right; font-variant-numeric: tabular-nums; }
   .controls { position: static; }
   .chart { height: 380px; }
   #lv-chart, #unc-chart { height: 460px; }
-  #cal-chart { height: 380px; }
+  #cal-chart { height: 440px; }
 }
 @media (max-width: 520px) {
   .head-row { flex-direction: column-reverse; gap: 10px; }

@@ -642,13 +642,13 @@ function renderCalibration() {
   traces.push({ x, y: C.curve.val, name: t("cal_curve_val"), mode: "lines", line: { color: css("--c-history"), width: 2.6 } });
   traces.push({ x, y: C.curve.test, name: t("cal_curve_test"), mode: "lines", line: { color: acc, width: 2.6 } });
   Plotly.react("cal-chart", traces, plotLayout({
-    margin: { l: 56, r: 14, t: 16, b: 50 }, hovermode: "x unified",
+    margin: { l: 56, r: 14, t: 70, b: 50 }, hovermode: "x unified",
     shapes: [50, Math.round(C.u * 100)].map((u, k) => ({ type: "line", x0: u, x1: u, yref: "paper", y0: 0, y1: 1, line: { color: k ? acc : muted, width: 1, dash: "dash" } })),
-    annotations: [{ x: 50, y: 1.04, yref: "paper", text: t("median_short"), showarrow: false, xanchor: "right", xshift: -4, font: { size: 11, color: muted } },
-      { x: Math.round(C.u * 100), y: 1.04, yref: "paper", text: t("cal_chosen", { u: Math.round(C.u * 100) }), showarrow: false, xanchor: "left", xshift: 4, font: { size: 11, color: acc } }],
+    annotations: [{ x: 50, y: 0.98, yref: "paper", yanchor: "top", text: t("median_short"), showarrow: false, xanchor: "right", xshift: -4, font: { size: 11, color: muted } },
+      { x: Math.round(C.u * 100), y: 0.98, yref: "paper", yanchor: "top", text: t("cal_chosen", { u: Math.round(C.u * 100) }), showarrow: false, xanchor: "left", xshift: 4, font: { size: 11, color: acc } }],
     xaxis: { ...plotLayout().xaxis, title: { text: t("cal_x"), font: { size: 12, color: muted } } },
     yaxis: { ...plotLayout().yaxis, rangemode: "normal", title: { text: t("col_score"), font: { size: 12, color: muted } } },
-    legend: { orientation: "h", yanchor: "top", y: -0.3, x: 0, font: { size: 11.5, color: muted } },
+    legend: { orientation: "h", yanchor: "bottom", y: 1.02, x: 0, font: { size: 11.5, color: muted } },
   }), plotConfig());
 }
 
