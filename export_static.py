@@ -52,7 +52,7 @@ def forecast_vn1(args, fc, progress):
     from vn1bench.data import HORIZON as H_VN1
     from vn1bench.data import load_vn1, mask_leading_zeros, relative_price
 
-    data = load_vn1(Path(args.data) / "vn1")
+    data = load_vn1(Path(args.data) / "vn1", "val" if args.bench == "vn1val" else "test")
     idx = np.arange(data.n)[args.shard :: args.nshards]
     if args.probe:
         idx = idx[:: max(1, len(idx) // args.probe)][: args.probe]
@@ -81,7 +81,7 @@ def cmd_forecast(args) -> None:
 
     if args.threads:
         torch.set_num_threads(args.threads)
-    if args.bench == "vn1":
+    if args.bench in ("vn1", "vn1val"):
         fc = load_forecaster(args.model)
         t0, last = time.time(), [0.0]
 
@@ -93,12 +93,12 @@ def cmd_forecast(args) -> None:
 
         idx, q, levels = forecast_vn1(args, fc, progress)
         seconds = time.time() - t0
-        meta = {"bench": "vn1", "config": args.config, "model": args.model, "covariates": args.covariates,
+        meta = {"bench": args.bench, "config": args.config, "model": args.model, "covariates": args.covariates,
                 "shard": args.shard, "nshards": args.nshards, "probe": args.probe, "seconds": seconds,
                 "series": int(len(idx)), "ms_per_series": 1000 * seconds / len(idx),
                 "threads": torch.get_num_threads(), "cpu": platform.processor() or platform.machine()}
         Path(args.out).mkdir(parents=True, exist_ok=True)
-        np.savez_compressed(Path(args.out) / f"vn1__{args.config}__{args.shard:02d}of{args.nshards:02d}.npz",
+        np.savez_compressed(Path(args.out) / f"{args.bench}__{args.config}__{args.shard:02d}of{args.nshards:02d}.npz",
                             idx=idx, q=q, levels=np.asarray(levels), meta=np.array(json.dumps(meta)))
         print(json.dumps(meta), flush=True)
         return
@@ -445,7 +445,7 @@ def main() -> None:
     f = sub.add_parser("forecast", help="forecast all series (or one shard) for one configuration")
     f.add_argument("--config", required=True)
     f.add_argument("--model", required=True)
-    f.add_argument("--bench", default="m5", choices=["m5", "vn1"])
+    f.add_argument("--bench", default="m5", choices=["m5", "vn1", "vn1val"])
     f.add_argument("--covariates", default="calendar", choices=["none", "calendar", "full", "rich", "price"])
     f.add_argument("--shard", type=int, default=0)
     f.add_argument("--nshards", type=int, default=1)

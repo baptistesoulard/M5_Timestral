@@ -71,7 +71,7 @@ jobs:
           path: data
           key: m5-data-v1
       - uses: actions/cache@v4
-        if: ${{ matrix.bench == 'vn1' }}
+        if: ${{ startsWith(matrix.bench, 'vn1') }}
         with:
           path: data/vn1
           key: vn1-data-v1
@@ -84,7 +84,7 @@ jobs:
         if: ${{ matrix.bench == 'm5' }}
         run: python download_data.py --data data --top 0
       - name: VN1 data
-        if: ${{ matrix.bench == 'vn1' }}
+        if: ${{ startsWith(matrix.bench, 'vn1') }}
         run: python -c "from vn1bench.data import ensure_vn1; ensure_vn1('data/vn1')"
       - name: Forecast (Timestral)
         if: ${{ matrix.kind == 'timestral' }}

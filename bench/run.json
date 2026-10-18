@@ -1,2 +1,3 @@
-{"mode": "full", "target": "live", "only": ["__publish_only__"],
+{"mode": "full", "target": "staging",
+ "only": ["vn1val_t5m_none", "vn1val_t28m_none", "vn1val_t28m_price", "vn1val_t209m_none", "vn1val_t209m_price"],
  "reuse_run_ids": ["39117349937", "39077648479"]}

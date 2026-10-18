@@ -60,10 +60,17 @@ class VN1Data:
         return len(self.ids)
 
 
-def load_vn1(data_dir: str | Path) -> VN1Data:
+def load_vn1(data_dir: str | Path, phase: str = "test") -> VN1Data:
+    """phase="test": history = phases 0 + 1, target = phase 2 (the official test).
+    phase="val": history = phase 0, target = phase 1 (validation, as the competition's public leaderboard)."""
     d = Path(data_dir)
     s0, s1, s2 = (_read(d / f"Phase {k} - Sales.csv") for k in (0, 1, 2))
     p0, p1 = (_read(d / f"Phase {k} - Price.csv") for k in (0, 1))
+    if phase == "val":
+        sales, price, test = s0, p0.loc[s0.index, s0.columns], s1.loc[s0.index]
+        return VN1Data(ids=sales.index.to_frame(index=False), train=sales.to_numpy(float),
+                       test=test.to_numpy(float), price=price.to_numpy(float),
+                       dates=sales.columns.append(test.columns))
     sales = pd.concat([s0, s1], axis=1)
     price = pd.concat([p0, p1], axis=1).loc[sales.index, sales.columns]
     test = s2.loc[sales.index]
