@@ -38,8 +38,8 @@ overlap with Timestral's pre-training data cannot be excluded either.
 Timestral, **unchanged and untrained on VN1**, forecasts the 13 test weeks of the 15,053 series from their history.
 Two inputs are compared: sales only, and sales plus the **relative price** (price divided by the series' usual price)
 as a covariate known only in the past, since VN1 gives no future prices. The point forecast is the median or
-the mean of Timestral's distribution, or the quantile that gave the best score on phase 1 (history up to
-October 2023, forecast of phase 1), applied once to the test weeks: this is the forecast shown in the leaderboard.
+the mean of Timestral's distribution, or the quantile that gave the best average score on four backtests
+covering the quarters of 2023 (the last one is phase 1), applied once to the test weeks: this is the forecast shown in the leaderboard.
 
 **Sources.** [VN1 data, top 5 forecasts and scoring code (SupChains)](https://github.com/SupChains/VN1) ·
 [Timestral announcement (Mistral)](https://mistral.ai/news/timestral/) ·
@@ -80,8 +80,8 @@ donc pas non plus être exclu.
 Timestral, **tel quel et sans entraînement sur VN1**, prévoit les 13 semaines de test des 15 053 séries à partir de
 leur historique. Deux entrées sont comparées : les ventes seules, et les ventes plus le **prix relatif** (prix divisé
 par le prix habituel de la série) comme covariable connue seulement dans le passé, VN1 ne donnant pas les prix
-futurs. La prévision ponctuelle est la médiane ou l'espérance de la distribution de Timestral, ou le quantile qui a donné le meilleur score sur la phase 1 (historique jusqu'à octobre 2023, prévision de la
-phase 1), appliqué une seule fois aux semaines de test : c'est la prévision retenue dans le classement.
+futurs. La prévision ponctuelle est la médiane ou l'espérance de la distribution de Timestral, ou le quantile qui a donné le meilleur score moyen sur quatre backtests
+couvrant les trimestres de 2023 (le dernier est la phase 1), appliqué une seule fois aux semaines de test : c'est la prévision retenue dans le classement.
 
 **Sources.** [Données VN1, top 5 et code de notation (SupChains)](https://github.com/SupChains/VN1) ·
 [Annonce de Timestral (Mistral)](https://mistral.ai/news/timestral/) ·
@@ -114,10 +114,10 @@ GLOSSARY = [
          "beaucoup moins signifie que le modèle est trop sûr de lui."),
         ("calibration", "Calibrated quantile (point forecast)", "Quantile calibré (prévision ponctuelle)",
          "Instead of the median, the point forecast is taken at the quantile that gave the best score on an earlier "
-         "period (here VN1 phase 1), then applied unchanged to the period evaluated. A P55 corrects a median that "
+         "period (here four backtests covering 2023), then applied unchanged to the period evaluated. A P55 corrects a median that "
          "systematically under-forecasts, without looking at the weeks being scored.",
          "Au lieu de la médiane, la prévision ponctuelle est prise au quantile qui a donné le meilleur score sur une "
-         "période antérieure (ici la phase 1 de VN1), puis appliqué tel quel à la période évaluée. Un P55 corrige une "
+         "période antérieure (ici quatre backtests couvrant 2023), puis appliqué tel quel à la période évaluée. Un P55 corrige une "
          "médiane qui sous-prévoit systématiquement, sans regarder les semaines notées."),
         ("horizon", "Horizon", "Horizon",
          "How far ahead the forecast goes: 28 days for M5, 13 weeks for VN1.",

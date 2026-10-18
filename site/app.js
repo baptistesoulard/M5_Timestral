@@ -614,30 +614,41 @@ function renderBenchmarkVN1() {
   $("ab-note").innerHTML = t("ab_note") + "<br>" + ["none", "price"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
 }
 
+function windowLabel(w) {
+  if (w.label === "val") return t("cal_win_p1");
+  const d0 = new Date(w.label.split("|")[0] + "T00:00:00Z"); // first forecast week: the window is one quarter
+  return t("quarter", { q: Math.floor(d0.getUTCMonth() / 3) + 1, y: d0.getUTCFullYear() });
+}
 function renderCalibration() {
   const cfgs = S.meta.configs.filter((c) => c.calib);
   $("cal-section").hidden = !cfgs.length;
   if (!cfgs.length) return;
-  const sel = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), C = sel.calib;
-  $("cal-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th class="num">${t("cal_u")}</th><th class="num">${t("cal_val_med")}</th><th class="num">${t("cal_val_cal")}</th><th class="num">${t("cal_test_med")}</th><th class="num">${t("cal_test_cal")}</th><th class="num">${t("cal_gain")}</th><th class="num">${t("col_bias")}</th></tr></thead><tbody>` +
+  const sel = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), C = sel.calib, P = (u) => `P${Math.round(u * 100)}`;
+  $("cal-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th class="num">${t("cal_test_med")}</th><th class="num">${t("cal_u")}</th><th class="num">${t("cal_test_cal")}</th><th class="num">${t("cal_gain")}</th><th class="num">${t("col_bias")}</th><th class="num">${t("cal_p1")}</th></tr></thead><tbody>` +
     cfgs.map((c) => {
       const k = c.calib, g = 1 - k.test.score / c.median.score;
-      return `<tr class="${c === sel ? "hl" : ""}"><td>${esc(cfgLabel(c))}</td><td class="num">P${Math.round(k.u * 100)}</td><td class="num">${fnum(k.val_median.score, 4)}</td><td class="num">${fnum(k.val.score, 4)}</td><td class="num">${fnum(c.median.score, 4)}</td><td class="num">${fnum(k.test.score, 4)}</td><td class="num"><span class="${g > 0 ? "delta-good" : "delta-bad"}">${fpct(g, true, 1)}</span></td><td class="num">${fpct(c.median.bias, true, 1)} → ${fpct(k.test.bias, true, 1)}</td></tr>`;
+      const p1 = k.p1 ? `${P(k.p1.u)} → ${fnum(k.p1.test.score, 4)}` : "–";
+      return `<tr class="${c === sel ? "hl" : ""}"><td>${esc(cfgLabel(c))}</td><td class="num">${fnum(c.median.score, 4)}</td><td class="num">${P(k.u)}</td><td class="num">${fnum(k.test.score, 4)}</td><td class="num"><span class="${g > 0 ? "delta-good" : "delta-bad"}">${fpct(g, true, 1)}</span></td><td class="num">${fpct(c.median.bias, true, 1)} → ${fpct(k.test.bias, true, 1)}</td><td class="num muted">${p1}</td></tr>`;
     }).join("") + "</tbody>";
-  $("cal-note").innerHTML = t("cal_note", { cfg: esc(cfgLabel(sel)), u: Math.round(C.u * 100), ub: Math.round(C.test_best_u * 100), sb: fnum(C.test_best, 4), s: fnum(C.test.score, 4) });
+  $("cal-note").innerHTML = t("cal_note", {
+    cfg: esc(cfgLabel(sel)), u: Math.round(C.u * 100), s: fnum(C.test.score, 4),
+    wins: (C.windows || []).map((w) => `${esc(windowLabel(w))} ${P(w.u)}`).join(", "),
+    ub: Math.round(C.test_best_u * 100), sb: fnum(C.test_best, 4),
+  });
   if (typeof Plotly === "undefined") return;
   const x = C.curve.u.map((u) => Math.round(u * 100)), acc = css("--accent"), muted = css("--muted");
-  Plotly.react("cal-chart", [
-    { x, y: C.curve.val, name: t("cal_curve_val"), mode: "lines", line: { color: css("--c-history"), width: 2 } },
-    { x, y: C.curve.test, name: t("cal_curve_test"), mode: "lines", line: { color: acc, width: 2.4 } },
-  ], plotLayout({
-    margin: { l: 56, r: 14, t: 10, b: 44 }, hovermode: "x unified",
+  const winColors = ["--c-snaive", "--c-ets", "--c-tsb", "--c-winner"];
+  const traces = (C.windows || []).map((w, k) => ({ x, y: w.curve, name: windowLabel(w), mode: "lines", line: { color: css(winColors[k % 4]), width: 1.2, dash: "dot" } }));
+  traces.push({ x, y: C.curve.val, name: t("cal_curve_val"), mode: "lines", line: { color: css("--c-history"), width: 2.6 } });
+  traces.push({ x, y: C.curve.test, name: t("cal_curve_test"), mode: "lines", line: { color: acc, width: 2.6 } });
+  Plotly.react("cal-chart", traces, plotLayout({
+    margin: { l: 56, r: 14, t: 16, b: 50 }, hovermode: "x unified",
     shapes: [50, Math.round(C.u * 100)].map((u, k) => ({ type: "line", x0: u, x1: u, yref: "paper", y0: 0, y1: 1, line: { color: k ? acc : muted, width: 1, dash: "dash" } })),
-    annotations: [{ x: 50, y: 1, yref: "paper", text: t("median_short"), showarrow: false, xanchor: "right", xshift: -4, font: { size: 11, color: muted } },
-      { x: Math.round(C.u * 100), y: 1, yref: "paper", text: t("cal_chosen", { u: Math.round(C.u * 100) }), showarrow: false, xanchor: "left", xshift: 4, font: { size: 11, color: acc } }],
-    xaxis: { ...plotLayout().xaxis, ticksuffix: "", title: { text: t("cal_x"), font: { size: 12, color: muted } } },
+    annotations: [{ x: 50, y: 1.04, yref: "paper", text: t("median_short"), showarrow: false, xanchor: "right", xshift: -4, font: { size: 11, color: muted } },
+      { x: Math.round(C.u * 100), y: 1.04, yref: "paper", text: t("cal_chosen", { u: Math.round(C.u * 100) }), showarrow: false, xanchor: "left", xshift: 4, font: { size: 11, color: acc } }],
+    xaxis: { ...plotLayout().xaxis, title: { text: t("cal_x"), font: { size: 12, color: muted } } },
     yaxis: { ...plotLayout().yaxis, rangemode: "normal", title: { text: t("col_score"), font: { size: 12, color: muted } } },
-    legend: { orientation: "h", yanchor: "top", y: -0.2, x: 0, font: { size: 11.5, color: muted } },
+    legend: { orientation: "h", yanchor: "top", y: -0.3, x: 0, font: { size: 11.5, color: muted } },
   }), plotConfig());
 }
 
