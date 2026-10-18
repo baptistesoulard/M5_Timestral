@@ -278,7 +278,7 @@ def learn_html(lang: str, slices) -> str:
 
     from app_texts import LEARN, LEVEL_LABELS, PIPELINE
 
-    md = lambda s: markdown.markdown(s, extensions=["sane_lists"])  # noqa: E731
+    md = lambda s: markdown.markdown(s, extensions=["sane_lists", "tables"])  # noqa: E731
     fmt = (lambda v: f"{v:,}".replace(",", " ")) if lang == "fr" else (lambda v: f"{v:,}")
     head = ("<th>#</th><th>Niveau</th><th class='num'>Séries</th>" if lang == "fr"
             else "<th>#</th><th>Level</th><th class='num'>Series</th>")
@@ -298,7 +298,9 @@ def learn_html(lang: str, slices) -> str:
     fm = "## Foundation models" if lang == "en" else "## Les modèles de fondation"
     tests = "## What this demo tests" if lang == "en" else "## Ce que teste cette démo"
     generic = md(fm + LEARN[f"{lang}_after_levels"].split(fm, 1)[1]) + pipe + md(after.split(tests, 1)[0])
-    vn1 = md(VN1_LEARN[lang]) + generic + md(VN1_LEARN[f"{lang}_tests"])
+    from site_texts import VN1_ANALYSIS
+
+    vn1 = md(VN1_LEARN[lang]) + generic + md(VN1_LEARN[f"{lang}_tests"]) + md(VN1_ANALYSIS[lang])
     return {"m5": m5, "vn1": vn1}
 
 

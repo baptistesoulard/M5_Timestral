@@ -271,3 +271,162 @@ GLOSSARY_INTRO = {
     "en": "The indicators and methods used on this site, in plain words. Lower is better for every error indicator.",
     "fr": "Les indicateurs et méthodes utilisés sur ce site, en termes simples. Pour tous les indicateurs d'erreur, plus bas = meilleur.",
 }
+
+VN1_ANALYSIS = {
+    "en": """
+## Analysis: what VN1 says about Timestral
+
+**In short.** Used as is, Timestral's median scores 0.499, barely better than the official naive forecast (0.507)
+and well behind the competition's top 5 (0.464 – 0.481). Taking a slightly higher quantile, the P57 chosen on
+four backtests, brings it to **0.467: it would have ranked 3rd**, between the 2nd (0.466) and the 3rd (0.476), without
+any training on VN1.
+
+### What the top 5 did
+
+| Rank | Score | Approach |
+|---|---|---|
+| 1st | 0.464 | LightGBM + SARIMA (≈ 30% of the blend) + anchored multiplicative seasonal indices; a few outliers fixed by hand |
+| 2nd | 0.466 | LightGBM (recursive and direct) + seasonal Theta |
+| 3rd | 0.476 | LightGBM + MFLES (smoothing with several seasonalities), long parameter search |
+| 4th | 0.477 | Temporal Fusion Transformer trained on the data; stock-outs and lockdowns interpolated |
+| 5th | 0.481 | LightGBM + TimesFM (Google's foundation model), series grouped by share of zeros and seasonal strength |
+
+What they share: a model trained on all 15,053 series at once with built features (recent sales, prices,
+calendar), averages of several models or runs, and settings tuned on phase 1, which was the public leaderboard.
+Nixtla reports 0.465 for its TimeGPT foundation model used zero-shot; it was not an eligible entry and the figure
+comes from the vendor.
+
+### Why the median is behind
+
+1. **Accurate, but biased.** Series by series, the median has the lowest absolute error of the whole leaderboard
+   (MAE 42.5% against 45.3% for the winner). But it under-forecasts total sales by 7%, and the VN1 score counts
+   bias twice.
+2. **It starts from the holiday trough.** History ends right after the year-end peak and the two holiday weeks.
+   The median forecast is almost flat at that low level, while sales went back to their usual January level.
+   The under-forecast is on **regular** products (84% of sales), not on lumpy ones: it is a question of level, not
+   of intermittent demand (see *Where the gap comes from* in the Benchmark tab).
+3. **The median sits below the mean.** On skewed weekly sales, each product's median is lower than its expected
+   value; the mean over-corrects (+13 to +17%), pulled up by peaks and products being phased out.
+4. **No learning across the dataset.** The winners learned from the 15,053 series together; Timestral forecasts
+   each product alone. Model size changes nothing (5M ≈ 28M ≈ 209M): the limit is the information in the input,
+   not the capacity of the model.
+
+### What worked, what did not
+
+| Change (always chosen on backtests, then applied once to the test weeks) | Score |
+|---|---|
+| Median, sales only (209M) | 0.499 |
+| **Quantile chosen on four 2023 backtests (P57)** | **0.467** |
+| Quantile chosen on phase 1 only (P59) | 0.505 |
+| + past prices | 0.471 |
+| + e-commerce calendar as covariates (week of year, Black Friday, Christmas, Prime Day; 28M) | 0.707 |
+| Seasonal index per client (sales adjusted, index applied back; 209M) | 0.509 |
+
+- **Calibrating the quantile is the lever.** One parameter, measured on past periods, removes most of the bias.
+- **One period is not enough to calibrate.** October – December alone asked for a higher quantile (P59 – P61)
+  than the rest of the year (P52 in Q1): calibrated on it, the forecast over-shoots. The four quarters together
+  give P57.
+- **Adding the calendar made things worse.** With 3.5 years of weekly history, each calendar week has been seen
+  three times; the forecast became noisier (80% band coverage down from 87% to 72% for the 28M model).
+- **The seasonal index gave the best absolute error (44.2%) but a −7% bias** after calibration: it lowered the
+  January level further.
+- The backtests ranked these options the same way as the test: both seasonality approaches scored clearly worse
+  on 2023 (0.56 and 0.69 against 0.50), so they would have been discarded without looking at the test weeks.
+
+### Takeaways for demand planning
+
+- **Choose the point of the distribution for the metric you are judged on.** The median minimises absolute error;
+  when the total must be unbiased, a slightly higher quantile does better. It is a business setting, not a model
+  property.
+- **Calibrate on several periods, never on the period being evaluated.** One season can mislead.
+- **Test every covariate on backtests.** More information is not automatically better for a zero-shot model.
+- **A foundation model is a strong default.** Without training or tuning it beats every classical statistical
+  method here and, once calibrated, matches models built over weeks for this dataset. It does not know your
+  calendar, phase-outs or promotions unless they reach it in a form it can use.
+
+**Sources.** [Foresight no. 77, Learnings from the VN1 competition (author version)](https://forecasters.org/wp-content/uploads/FS77_-author-version.pdf) ·
+[N. Vandeput, What I learned from the best forecasters](https://nicolas-vandeput.medium.com/vn1-forecasting-competition-what-i-learned-from-the-best-forecasters-ba8f314ec21f) ·
+[Nixtla, TimeGPT on VN1](https://rdrr.io/cran/nixtlar/f/inst/doc/vn1-forecasting-competition.Rmd)
+""",
+    "fr": """
+## Analyse : ce que VN1 dit de Timestral
+
+**En bref.** Utilisé tel quel, Timestral obtient 0,499 avec sa médiane, à peine mieux que la prévision naïve
+officielle (0,507) et nettement derrière le top 5 du concours (0,464 – 0,481). En prenant un quantile un peu plus
+haut, le P57 choisi sur quatre backtests, il descend à **0,467 : il aurait été 3e**, sans aucun entraînement sur
+VN1.
+
+### Ce qu'a fait le top 5
+
+| Rang | Score | Approche |
+|---|---|---|
+| 1er | 0,464 | LightGBM + SARIMA (≈ 30 % du mélange) + indices saisonniers multiplicatifs ; quelques valeurs aberrantes corrigées à la main |
+| 2e | 0,466 | LightGBM (récursif et direct) + Theta saisonnier |
+| 3e | 0,476 | LightGBM + MFLES (lissage à saisonnalités multiples), longue recherche de paramètres |
+| 4e | 0,477 | Temporal Fusion Transformer entraîné sur les données ; ruptures et confinements interpolés |
+| 5e | 0,481 | LightGBM + TimesFM (modèle de fondation de Google), séries regroupées par part de zéros et force de la saisonnalité |
+
+Points communs : un modèle entraîné sur les 15 053 séries à la fois avec des variables construites (ventes récentes,
+prix, calendrier), des moyennes de plusieurs modèles ou de plusieurs passages, et des réglages ajustés sur la phase 1,
+qui servait de classement public. Nixtla annonce 0,465 pour son modèle de fondation TimeGPT utilisé sans entraînement ;
+ce n'était pas une participation éligible et le chiffre vient de l'éditeur.
+
+### Pourquoi la médiane est derrière
+
+1. **Précise, mais biaisée.** Série par série, la médiane a la plus faible erreur absolue de tout le classement
+   (MAE 42,5 % contre 45,3 % pour le vainqueur). Mais elle sous-prévoit les ventes totales de 7 %, et le score VN1
+   compte le biais deux fois.
+2. **Elle part du creux des fêtes.** L'historique s'arrête juste après le pic de fin d'année et les deux semaines de
+   fêtes. La prévision médiane reste presque plate à ce niveau bas, alors que les ventes sont revenues à leur niveau
+   habituel de janvier. La sous-prévision porte sur les produits **réguliers** (84 % des ventes), pas sur les
+   erratiques : c'est une question de niveau, pas de demande intermittente (voir *D'où vient l'écart* dans l'onglet
+   Benchmark).
+3. **La médiane est sous l'espérance.** Sur des ventes hebdomadaires asymétriques, la médiane de chaque produit est
+   inférieure à sa valeur attendue ; l'espérance surcorrige (+13 à +17 %), tirée par les pics et les produits en fin
+   de vie.
+4. **Pas d'apprentissage sur l'ensemble des séries.** Les gagnants ont appris sur les 15 053 séries ensemble ;
+   Timestral prévoit chaque produit seul. La taille du modèle ne change rien (5M ≈ 28M ≈ 209M) : la limite vient de
+   l'information fournie, pas de la capacité du modèle.
+
+### Ce qui a marché, ce qui n'a pas marché
+
+| Changement (toujours choisi sur backtests, puis appliqué une seule fois aux semaines de test) | Score |
+|---|---|
+| Médiane, ventes seules (209M) | 0,499 |
+| **Quantile choisi sur quatre backtests 2023 (P57)** | **0,467** |
+| Quantile choisi sur la seule phase 1 (P59) | 0,505 |
+| + prix passés | 0,471 |
+| + calendrier e-commerce en covariables (semaine de l'année, Black Friday, Noël, Prime Day ; 28M) | 0,707 |
+| Indice saisonnier par client (ventes corrigées, indice réappliqué ; 209M) | 0,509 |
+
+- **Calibrer le quantile est le bon levier.** Un seul paramètre, mesuré sur des périodes passées, retire l'essentiel
+  du biais.
+- **Une seule période ne suffit pas pour calibrer.** Octobre – décembre seul demandait un quantile plus haut (P59 –
+  P61) que le reste de l'année (P52 au 1er trimestre) : calibrée dessus, la prévision dépasse. Les quatre trimestres
+  ensemble donnent P57.
+- **Ajouter le calendrier a dégradé la prévision.** Avec 3,5 ans d'historique hebdomadaire, chaque semaine du
+  calendrier n'a été vue que trois fois ; la prévision est devenue plus bruitée (couverture de la bande 80 % tombée de
+  87 % à 72 % pour le modèle 28M).
+- **L'indice saisonnier donne la meilleure erreur absolue (44,2 %) mais un biais de −7 %** après calibration : il a
+  encore abaissé le niveau de janvier.
+- Les backtests ont classé ces options comme le test : les deux approches de saisonnalité faisaient nettement moins
+  bien sur 2023 (0,56 et 0,69 contre 0,50), elles auraient donc été écartées sans regarder les semaines de test.
+
+### Enseignements pour la prévision de la demande
+
+- **Choisir le point de la distribution selon la métrique sur laquelle on est jugé.** La médiane minimise l'erreur
+  absolue ; quand le total doit être sans biais, un quantile un peu plus haut fait mieux. C'est un réglage métier, pas
+  une propriété du modèle.
+- **Calibrer sur plusieurs périodes, jamais sur la période évaluée.** Une seule saison peut tromper.
+- **Tester chaque covariable en backtest.** Plus d'information n'améliore pas automatiquement un modèle utilisé sans
+  entraînement.
+- **Un modèle de fondation est une base solide.** Sans entraînement ni réglage, il bat ici toutes les méthodes
+  statistiques classiques et, une fois calibré, rejoint des modèles construits pendant des semaines pour ce jeu de
+  données. Il ne connaît ni le calendrier commercial, ni les fins de vie, ni les promotions, sauf si on les lui
+  transmet sous une forme exploitable.
+
+**Sources.** [Foresight n° 77, Learnings from the VN1 Forecasting Competition (version auteur)](https://forecasters.org/wp-content/uploads/FS77_-author-version.pdf) ·
+[N. Vandeput, What I learned from the best forecasters](https://nicolas-vandeput.medium.com/vn1-forecasting-competition-what-i-learned-from-the-best-forecasters-ba8f314ec21f) ·
+[Nixtla, TimeGPT sur VN1](https://rdrr.io/cran/nixtlar/f/inst/doc/vn1-forecasting-competition.Rmd)
+""",
+}

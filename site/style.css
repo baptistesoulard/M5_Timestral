@@ -162,6 +162,10 @@ h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; margin
 .prose p, .prose li { color: var(--ink); }
 .prose ul, .prose ol { padding-left: 22px; }
 .prose .table-wrap { max-width: 420px; }
+.prose > table { border-collapse: collapse; width: 100%; font-size: 14px; margin: 12px 0; display: block; overflow-x: auto; }
+.prose > table th, .prose > table td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.prose > table th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--surface); }
+.prose h3 + table, .prose p + table { background: var(--surface); }
 table.levels { border-collapse: collapse; width: 100%; font-size: 14px; }
 table.levels th, table.levels td { padding: 6px 12px; border-bottom: 1px solid var(--line); text-align: left; }
 table.levels .num { text-align: right; font-variant-numeric: tabular-nums; }

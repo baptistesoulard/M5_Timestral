@@ -1,24 +1,11 @@
 {
  "mode": "full",
- "target": "staging",
+ "target": "live",
  "only": [
-  "vn1_t28m_calendar",
-  "vn1_t28m_sidx",
-  "vn1_t209m_sidx",
-  "vn1val_t28m_calendar",
-  "vn1val_t28m_sidx",
-  "vn1val_t209m_sidx",
-  "vn1bt131_t28m_calendar",
-  "vn1bt131_t28m_sidx",
-  "vn1bt131_t209m_sidx",
-  "vn1bt144_t28m_calendar",
-  "vn1bt144_t28m_sidx",
-  "vn1bt144_t209m_sidx",
-  "vn1bt157_t28m_calendar",
-  "vn1bt157_t28m_sidx",
-  "vn1bt157_t209m_sidx"
+  "__publish_only__"
  ],
  "reuse_run_ids": [
+  "39140742693",
   "39133315953",
   "39130986423",
   "39117349937",
