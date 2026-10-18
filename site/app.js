@@ -133,6 +133,13 @@ const bestVN1 = (c) => (c.calib ? { v: "calib", ...c.calib.test }
   : c.mean.score < c.median.score ? { v: "mean", ...c.mean } : { v: "median", ...c.median });
 // the configuration put forward: best on phase 1 when calibrated, otherwise best on the test
 const valScore = (c) => (c.calib ? c.calib.val.score : bestVN1(c).score);
+// one reference version of Timestral across the site (the other sizes stay in the size / covariates table)
+const refCfgs = () => S.meta.configs.filter((c) => !S.meta.reference_model || c.model === S.meta.reference_model);
+function refConfig() {
+  const r = refCfgs(), d = r.find((c) => c.name === S.meta.default_config);
+  if (d) return d;
+  return isVN1() ? r.reduce((a, b) => (valScore(b) < valScore(a) ? b : a), r[0]) : r.reduce((a, b) => (bestVariant(b).s < bestVariant(a).s ? b : a), r[0]);
+}
 function varLabel(c, v) {
   return v === "calib" ? t("var_calib", { u: Math.round(c.calib.u * 100) }) : t("var_" + v);
 }
@@ -451,12 +458,12 @@ function renderBenchmark() {
   const base = Object.fromEntries(m.baselines.filter((b) => b.metric === "wrmsse").map((b) => [b.method, b.score]));
   const winner = Object.entries(base).find(([k]) => k.startsWith("M5 #1 "));
   if (cfgs.length) {
-    const best = cfgs.reduce((a, b) => (bestVariant(b).s < bestVariant(a).s ? b : a));
+    const best = refConfig();
     const bs = bestVariant(best).s;
     const rel = (ref) => (ref ? 1 - bs / ref : NaN);
     const vsCard = (key, ref) => kpi(t(key), fpct(rel(ref), true), `WRMSSE ${fnum(ref, 4)}`, rel(ref) > 0 ? "good" : "bad");
     $("bench-kpis").innerHTML = [
-      kpi(t("b_best") + help("wrmsse"), fnum(bs, 4), `${esc(cfgLabel(best))} · ${t("var_" + bestVariant(best).v)}`, "lead"),
+      kpi(t("b_ref") + help("wrmsse"), fnum(bs, 4), `${esc(cfgLabel(best))} · ${t("var_" + bestVariant(best).v)}`, "lead"),
       vsCard("b_vs_ets", base.ets),
       base.arima ? vsCard("b_vs_arima", base.arima) : vsCard("b_vs_snaive", base.snaive),
       vsCard("b_vs_winner", winner && winner[1]),
@@ -471,7 +478,7 @@ function renderBenchmark() {
     const comp = k.startsWith("M5 #");
     rows.push({ name: comp ? k : methodLabel(k), anchor: methodAnchor(k), type: comp ? "comp" : "stat", s, point: "" });
   }
-  for (const c of cfgs) { const b = bestVariant(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: b.s, point: t("var_" + b.v) }); }
+  { const c = refConfig(), b = bestVariant(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: b.s, point: t("var_" + b.v) }); }
   rows.sort((a, b) => a.s - b.s);
   $("lb-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th>${t("lb_point")}</th><th class="num">WRMSSE</th></tr></thead><tbody>` +
     rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.s, 4)}</td></tr>`).join("") + "</tbody>";
@@ -491,7 +498,7 @@ function renderBenchmark() {
     const xs = small ? t("lv_names").map((_, k) => String(k + 1)) : t("lv_names").map((n, k) => `${k + 1}. ${n}`);
     const series = [];
     if (cfgs.length) {
-      const best = cfgs.reduce((a, b) => (bestVariant(b).s < bestVariant(a).s ? b : a));
+      const best = refConfig();
       series.push({ name: cfgLabel(best), y: lvl(best.name, bestVariant(best).v, "bottom-up"), color: css("--accent"), width: 3 });
     }
     for (const k of ["ets", "arima", "snaive", "tsb"]) if (k in base) series.push({ name: methodLabel(k), y: lvl(k, "", "bottom-up"), color: css(REF_COLOR[k]) });
@@ -522,13 +529,12 @@ function renderBenchmark() {
         return `<tr><td>${esc(c.model.replace("Timestral-", "Timestral "))}</td><td title="${esc(t("cov_desc_" + c.covariates))}">${esc(t("cov_" + c.covariates))}</td><td class="num">${fnum(c.wrmsse["median|bottom-up"], 4)}</td><td class="num">${fnum(c.wrmsse["mean|bottom-up"], 4)}</td><td class="num">${fnum(dir, 4)}</td><td class="num">${delta}</td><td class="num">${fnum(c.wspl, 4)}</td><td class="num">${fint(c.ms_per_series)}</td></tr>`;
       }).join("") + "</tbody>";
   }
-  $("ab-note").innerHTML = t("ab_note", { emp: emp ? fnum(emp.score, 4) : "–" }) + "<br>" + t("ab_note_median") + "<br>" +
+  $("ab-note").innerHTML = t("ab_size_note") + "<br>" + t("ab_note", { emp: emp ? fnum(emp.score, 4) : "–" }) + "<br>" + t("ab_note_median") + "<br>" +
     ["none", "calendar", "full", "rich"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
 }
 
 function bestWspl() {
-  const cfgs = S.meta.configs;
-  return cfgs.length ? cfgs.reduce((a, b) => (b.wspl < a.wspl ? b : a)) : null;
+  return S.meta.configs.length ? refConfig() : null;
 }
 function uncertaintyKpi() {
   const best = bestWspl(), pub = (S.meta.uncertainty_published || []).find((p) => p.key === "unc_winner");
@@ -538,7 +544,7 @@ function uncertaintyKpi() {
 }
 function renderUncertainty() {
   const m = S.meta, rows = [];
-  for (const c of m.configs) rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: c.wspl, levels: null, cfg: c.name });
+  { const c = refConfig(); if (c) rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: c.wspl, levels: null, cfg: c.name }); }
   for (const p of m.uncertainty_published || []) rows.push({ name: t(p.key), anchor: p.key === "unc_winner" ? "lightgbm" : "arima", type: p.key === "unc_winner" ? "comp" : "stat", s: p.wspl, levels: p.levels });
   const emp = m.baselines.find((b) => b.metric === "wspl");
   if (emp) rows.push({ name: t("unc_emp"), anchor: "empirical", type: "stat", s: emp.score });
@@ -575,12 +581,12 @@ function renderBenchmarkVN1() {
   const stats = m.baselines.filter((b) => b.family === "benchmark");
   const bestStat = stats.reduce((a, b) => (b.score < a.score ? b : a), stats[0]);
   if (cfgs.length) {
-    const best = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), B = bestVN1(best);
+    const best = refConfig(), B = bestVN1(best);
     const rel = (r) => (r ? 1 - B.score / r.score : NaN);
     const vs = (key, r, sub) => kpi(t(key), fpct(rel(r), true), sub, rel(r) > 0 ? "good" : "bad");
     const rank = comp.filter((c) => c.score < B.score).length + 1;
     $("bench-kpis").innerHTML = [
-      kpi(t(best.calib ? "b_best_vn1" : "b_best") + help("calibration"), fnum(B.score, 4), `${esc(cfgLabel(best))} · ${varLabel(best, B.v)} · MAE ${fpct(B.mae, false, 1)} · ${t("col_bias")} ${fpct(B.bias, true, 1)}`, "lead"),
+      kpi(t("b_ref") + help("calibration"), fnum(B.score, 4), `${esc(cfgLabel(best))} · ${varLabel(best, B.v)} · MAE ${fpct(B.mae, false, 1)} · ${t("col_bias")} ${fpct(B.bias, true, 1)}`, "lead"),
       vs("k_vs_naive", base.naive, t("k_score_of", { v: fnum(base.naive && base.naive.score, 4) })),
       bestStat ? vs("b_vs_beststat", bestStat, `${esc(methodLabel(bestStat.method))} · ${fnum(bestStat.score, 4)}`) : "",
       vs("b_vs_winner", base.vn1_1st, t("k_score_of", { v: fnum(base.vn1_1st && base.vn1_1st.score, 4) })),
@@ -594,7 +600,7 @@ function renderBenchmarkVN1() {
     name: methodLabel(b.method), anchor: methodAnchor(b.method), point: "",
     type: b.family === "competition" ? "comp" : b.family === "official" ? "official" : "stat", ...b,
   }));
-  for (const c of cfgs) { const b = bestVN1(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", point: varLabel(c, b.v), ...b }); }
+  { const c = refConfig(), b = bestVN1(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", point: varLabel(c, b.v), ...b }); }
   rows.sort((a, b) => a.score - b.score);
   $("lb-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th>${t("lb_point")}</th><th class="num">${t("col_score")}</th><th class="num">MAE%</th><th class="num">${t("col_bias")}</th></tr></thead><tbody>` +
     rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.score, 4)}</td><td class="num">${fpct(r.mae, false, 1)}</td><td class="num">${fpct(r.bias, true, 1)}</td></tr>`).join("") + "</tbody>";
@@ -612,7 +618,7 @@ function renderBenchmarkVN1() {
   }
   renderCalibration();
   renderDiagnostic();
-  $("ab-note").innerHTML = t("ab_note") + "<br>" + S.meta.configs.map((c) => c.covariates).filter((k, i, a) => a.indexOf(k) === i).map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
+  $("ab-note").innerHTML = t("ab_size_note") + "<br>" + t("ab_note") + "<br>" + S.meta.configs.map((c) => c.covariates).filter((k, i, a) => a.indexOf(k) === i).map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
 }
 
 function windowLabel(w) {
@@ -624,7 +630,7 @@ function renderCalibration() {
   const cfgs = S.meta.configs.filter((c) => c.calib);
   $("cal-section").hidden = !cfgs.length;
   if (!cfgs.length) return;
-  const sel = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), C = sel.calib, P = (u) => `P${Math.round(u * 100)}`;
+  const sel = cfgs.includes(refConfig()) ? refConfig() : cfgs[0], C = sel.calib, P = (u) => `P${Math.round(u * 100)}`;
   $("cal-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th class="num">${t("cal_test_med")}</th><th class="num">${t("cal_u")}</th><th class="num">${t("cal_test_cal")}</th><th class="num">${t("cal_gain")}</th><th class="num">${t("col_bias")}</th><th class="num">${t("cal_p1")}</th></tr></thead><tbody>` +
     cfgs.map((c) => {
       const k = c.calib, g = 1 - k.test.score / c.median.score;
@@ -657,7 +663,7 @@ function renderDiagnostic() {
   const m = S.meta, D = m.diag, cfgs = m.configs.filter((c) => c.diag);
   $("diag-section").hidden = !D || !cfgs.length;
   if (!D || !cfgs.length) return;
-  const sel = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), B = bestVN1(sel);
+  const sel = cfgs.includes(refConfig()) ? refConfig() : cfgs[0], B = bestVN1(sel);
   const selName = `${cfgLabel(sel)} · ${varLabel(sel, B.v)}`;
   const segRow = (name, seg, k) => seg ? seg[k] : null;
   const pts = [
@@ -687,7 +693,8 @@ function renderDiagnostic() {
   if (D.ref_totals.vn1_1st) traces.push({ x: fx, y: D.ref_totals.vn1_1st, name: refLabel("vn1_1st"), mode: "lines", line: { color: css("--c-winner"), width: 1.6, dash: "dash" } });
   if (D.ref_totals.snaive) traces.push({ x: fx, y: D.ref_totals.snaive, name: refLabel("snaive"), mode: "lines", line: { color: css("--c-snaive"), width: 1.2, dash: "dot" }, visible: "legendonly" });
   Plotly.react("diag-chart", traces, plotLayout({
-    margin: { l: 60, r: 14, t: 16, b: 40 },
+    margin: { l: 60, r: 14, t: 70, b: 40 },
+    legend: { orientation: "h", yanchor: "bottom", y: 1.02, x: 0, font: { size: 11.5, color: muted } },
     shapes: [{ type: "line", x0: fx[0], x1: fx[0], yref: "paper", y0: 0, y1: 1, line: { color: muted, width: 1, dash: "dash" } }],
     yaxis: { ...plotLayout().yaxis, title: { text: t("diag_y"), font: { size: 12, color: muted } } },
     xaxis: dateAxis(),
@@ -720,7 +727,8 @@ function applyTexts() {
     fillSelect(lvSel, Array.from({ length: 12 }, (_, k) => String(k + 1)), t("lv_names").map((n, k) => `${k + 1}. ${n}`), lv);
   }
   const cfgSel = $("sel-config"), cv = S.meta.configs.some((c) => c.name === cfgSel.value) ? cfgSel.value : S.meta.default_config;
-  fillSelect(cfgSel, S.meta.configs.map((c) => c.name), S.meta.configs.map(cfgLabel), cv);
+  const rc = refCfgs();
+  fillSelect(cfgSel, rc.map((c) => c.name), rc.map(cfgLabel), rc.some((c) => c.name === cv) ? cv : refConfig().name);
   updateCfgHint();
   $("examples").innerHTML = S.meta.examples.map((e) => `<button type="button" data-i="${e.i}">${esc(t(e.key))}</button>`).join("");
   const checked = S.checked[S.bench] || new Set(DEFAULT_REFS[S.bench]);

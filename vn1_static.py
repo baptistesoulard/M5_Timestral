@@ -145,8 +145,12 @@ def build_vn1(args, out: Path) -> list[str]:
               f"80% band coverage {entry['coverage80']:.1%}")
     order = {k: i for i, k in enumerate(bench_cfg)}
     cfg_meta.sort(key=lambda c: order.get(c["name"], 99))
-    best = min(cfg_meta, key=lambda c: min([c["median"]["score"], c["mean"]["score"]]
-                                           + ([c["calib"]["test"]["score"]] if "calib" in c else [])), default=None)
+    from export_static import REFERENCE_MODEL
+
+    # reference configuration: among the reference model's configurations, the best on the backtests
+    ref_cfgs = [c for c in cfg_meta if c["model"] == REFERENCE_MODEL] or cfg_meta
+    best = min(ref_cfgs, key=lambda c: c["calib"]["val"]["score"] if "calib" in c else c["median"]["score"],
+               default=None)
 
     # examples: the largest series, a typical one and a lumpy one (many zero weeks)
     tot = data.train[:, -52:].sum(1)
@@ -159,6 +163,7 @@ def build_vn1(args, out: Path) -> list[str]:
     meta = {
         "generated": time.strftime("%Y-%m-%d"), "chunk": CHUNK, "hist_days": int(data.train.shape[1]),
         "horizon": HORIZON, "bench": "vn1", "freq": "W", "display_q": list(DISPLAY_Q), "refs": refs,
+        "reference_model": REFERENCE_MODEL,
         "start_date": str(data.dates[0].date()), "test_start": str(data.dates[data.train.shape[1]].date()),
         "configs": cfg_meta, "default_config": best["name"] if best else None, "baselines": baselines,
         "examples": [{"key": "vx_big", "i": big}, {"key": "vx_mid", "i": mid}, {"key": "vx_lumpy", "i": lumpy}],

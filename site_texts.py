@@ -276,10 +276,10 @@ VN1_ANALYSIS = {
     "en": """
 ## Analysis: what VN1 says about Timestral
 
-**In short.** Used as is, Timestral's median scores 0.499, barely better than the official naive forecast (0.507)
-and well behind the competition's top 5 (0.464 – 0.481). Taking a slightly higher quantile, the P57 chosen on
-four backtests, brings it to **0.467: it would have ranked 3rd**, between the 2nd (0.466) and the 3rd (0.476), without
-any training on VN1.
+**In short.** Used as is, the median of Timestral 28M (the reference version on this site) scores 0.498, barely
+better than the official naive forecast (0.507) and well behind the competition's top 5 (0.464 – 0.481). Taking a
+slightly higher quantile, the P57 chosen on four backtests, brings it to **0.470: it would have ranked 3rd**, behind
+the 2nd (0.466) and ahead of the 3rd (0.476), without any training on VN1. The 5M and 209M models land within 0.003.
 
 ### What the top 5 did
 
@@ -299,7 +299,7 @@ comes from the vendor.
 ### Why the median is behind
 
 1. **Accurate, but biased.** Series by series, the median has the lowest absolute error of the whole leaderboard
-   (MAE 42.5% against 45.3% for the winner). But it under-forecasts total sales by 7%, and the VN1 score counts
+   (MAE 42.8% against 45.3% for the winner). But it under-forecasts total sales by 7%, and the VN1 score counts
    bias twice.
 2. **It starts from the holiday trough.** History ends right after the year-end peak and the two holiday weeks.
    The median forecast is almost flat at that low level, while sales went back to their usual January level.
@@ -313,22 +313,22 @@ comes from the vendor.
 
 ### What worked, what did not
 
-| Change (always chosen on backtests, then applied once to the test weeks) | Score |
+| Timestral 28M; change (always chosen on backtests, then applied once to the test weeks) | Score |
 |---|---|
-| Median, sales only (209M) | 0.499 |
-| **Quantile chosen on four 2023 backtests (P57)** | **0.467** |
-| Quantile chosen on phase 1 only (P59) | 0.505 |
-| + past prices | 0.471 |
-| + e-commerce calendar as covariates (week of year, Black Friday, Christmas, Prime Day; 28M) | 0.707 |
-| Seasonal index per client (sales adjusted, index applied back; 209M) | 0.509 |
+| Median, sales only | 0.498 |
+| **Quantile chosen on four 2023 backtests (P57)** | **0.470** |
+| Quantile chosen on phase 1 only (P60) | 0.530 |
+| + past prices | 0.480 |
+| + e-commerce calendar as covariates (week of year, Black Friday, Christmas, Prime Day) | 0.707 |
+| Seasonal index per client (sales adjusted, index applied back) | 0.511 |
 
 - **Calibrating the quantile is the lever.** One parameter, measured on past periods, removes most of the bias.
-- **One period is not enough to calibrate.** October – December alone asked for a higher quantile (P59 – P61)
+- **One period is not enough to calibrate.** October – December alone asked for a higher quantile (P60)
   than the rest of the year (P52 in Q1): calibrated on it, the forecast over-shoots. The four quarters together
   give P57.
 - **Adding the calendar made things worse.** With 3.5 years of weekly history, each calendar week has been seen
-  three times; the forecast became noisier (80% band coverage down from 87% to 72% for the 28M model).
-- **The seasonal index gave the best absolute error (44.2%) but a −7% bias** after calibration: it lowered the
+  three times; the forecast became noisier (80% band coverage down from 87% to 72%).
+- **The seasonal index gave the best absolute error (44.5%) but a −7% bias** after calibration: it lowered the
   January level further.
 - The backtests ranked these options the same way as the test: both seasonality approaches scored clearly worse
   on 2023 (0.56 and 0.69 against 0.50), so they would have been discarded without looking at the test weeks.
@@ -351,10 +351,11 @@ comes from the vendor.
     "fr": """
 ## Analyse : ce que VN1 dit de Timestral
 
-**En bref.** Utilisé tel quel, Timestral obtient 0,499 avec sa médiane, à peine mieux que la prévision naïve
-officielle (0,507) et nettement derrière le top 5 du concours (0,464 – 0,481). En prenant un quantile un peu plus
-haut, le P57 choisi sur quatre backtests, il descend à **0,467 : il aurait été 3e**, sans aucun entraînement sur
-VN1.
+**En bref.** Utilisé tel quel, Timestral 28M (la version de référence de ce site) obtient 0,498 avec sa médiane, à
+peine mieux que la prévision naïve officielle (0,507) et nettement derrière le top 5 du concours (0,464 – 0,481). En
+prenant un quantile un peu plus haut, le P57 choisi sur quatre backtests, il descend à **0,470 : il aurait été 3e**,
+derrière le 2e (0,466) et devant le 3e (0,476), sans aucun entraînement sur VN1. Les modèles 5M et 209M arrivent à
+0,003 près.
 
 ### Ce qu'a fait le top 5
 
@@ -374,7 +375,7 @@ ce n'était pas une participation éligible et le chiffre vient de l'éditeur.
 ### Pourquoi la médiane est derrière
 
 1. **Précise, mais biaisée.** Série par série, la médiane a la plus faible erreur absolue de tout le classement
-   (MAE 42,5 % contre 45,3 % pour le vainqueur). Mais elle sous-prévoit les ventes totales de 7 %, et le score VN1
+   (MAE 42,8 % contre 45,3 % pour le vainqueur). Mais elle sous-prévoit les ventes totales de 7 %, et le score VN1
    compte le biais deux fois.
 2. **Elle part du creux des fêtes.** L'historique s'arrête juste après le pic de fin d'année et les deux semaines de
    fêtes. La prévision médiane reste presque plate à ce niveau bas, alors que les ventes sont revenues à leur niveau
@@ -390,24 +391,24 @@ ce n'était pas une participation éligible et le chiffre vient de l'éditeur.
 
 ### Ce qui a marché, ce qui n'a pas marché
 
-| Changement (toujours choisi sur backtests, puis appliqué une seule fois aux semaines de test) | Score |
+| Timestral 28M ; changement (toujours choisi sur backtests, puis appliqué une seule fois aux semaines de test) | Score |
 |---|---|
-| Médiane, ventes seules (209M) | 0,499 |
-| **Quantile choisi sur quatre backtests 2023 (P57)** | **0,467** |
-| Quantile choisi sur la seule phase 1 (P59) | 0,505 |
-| + prix passés | 0,471 |
-| + calendrier e-commerce en covariables (semaine de l'année, Black Friday, Noël, Prime Day ; 28M) | 0,707 |
-| Indice saisonnier par client (ventes corrigées, indice réappliqué ; 209M) | 0,509 |
+| Médiane, ventes seules | 0,498 |
+| **Quantile choisi sur quatre backtests 2023 (P57)** | **0,470** |
+| Quantile choisi sur la seule phase 1 (P60) | 0,530 |
+| + prix passés | 0,480 |
+| + calendrier e-commerce en covariables (semaine de l'année, Black Friday, Noël, Prime Day) | 0,707 |
+| Indice saisonnier par client (ventes corrigées, indice réappliqué) | 0,511 |
 
 - **Calibrer le quantile est le bon levier.** Un seul paramètre, mesuré sur des périodes passées, retire l'essentiel
   du biais.
-- **Une seule période ne suffit pas pour calibrer.** Octobre – décembre seul demandait un quantile plus haut (P59 –
-  P61) que le reste de l'année (P52 au 1er trimestre) : calibrée dessus, la prévision dépasse. Les quatre trimestres
+- **Une seule période ne suffit pas pour calibrer.** Octobre – décembre seul demandait un quantile plus haut (P60)
+  que le reste de l'année (P52 au 1er trimestre) : calibrée dessus, la prévision dépasse. Les quatre trimestres
   ensemble donnent P57.
 - **Ajouter le calendrier a dégradé la prévision.** Avec 3,5 ans d'historique hebdomadaire, chaque semaine du
   calendrier n'a été vue que trois fois ; la prévision est devenue plus bruitée (couverture de la bande 80 % tombée de
-  87 % à 72 % pour le modèle 28M).
-- **L'indice saisonnier donne la meilleure erreur absolue (44,2 %) mais un biais de −7 %** après calibration : il a
+  87 % à 72 %).
+- **L'indice saisonnier donne la meilleure erreur absolue (44,5 %) mais un biais de −7 %** après calibration : il a
   encore abaissé le niveau de janvier.
 - Les backtests ont classé ces options comme le test : les deux approches de saisonnalité faisaient nettement moins
   bien sur 2023 (0,56 et 0,69 contre 0,50), elles auraient donc été écartées sans regarder les semaines de test.

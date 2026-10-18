@@ -114,6 +114,9 @@ window.I18N = {
 // Benchmark switch (M5 / VN1), VN1 texts and glossary links. A key ending in "__vn1" or "__m5" replaces the plain
 // key on that benchmark only.
 Object.assign(window.I18N.en, {
+  b_ref: "Timestral 28M, reference version",
+  ab_size_note: "<strong>Reference version.</strong> The site shows <strong>Timestral 28M</strong> everywhere else: on M5 it is as accurate as the 209M model (WRMSSE 0.615 against 0.617) and about 7 times faster. The 209M model only does clearly better on quantiles (WSPL 0.154, level with the Uncertainty winner, against 0.162). The 5M model falls behind on daily data (0.712).",
+  ab_size_note__vn1: "<strong>Reference version.</strong> The site shows <strong>Timestral 28M</strong> everywhere else. On VN1, size changes almost nothing once the quantile is calibrated: 0.468 for the 5M model, 0.470 for the 28M and 0.467 for the 209M, all 3rd in the competition, at 1, 5 and 36 ms per series.",
   diag_title: "Where the gap comes from", diag_y: "Units sold / week (all series)",
   diag_intro: "Weekly sales of all 15,053 series added up. History ends right after the year-end peak and the two holiday weeks; the median forecast starts from that trough, the competition winner returns to the usual January level.",
   diag_ts_median: "{cfg} · median", diag_bias_by: "Bias by demand pattern (% of total sales)", diag_total: "Total", diag_of_sales: "of sales",
@@ -167,6 +170,9 @@ Object.assign(window.I18N.en, {
   footer__vn1: "Data: VN1 competition (SupChains, Flieber, Syrup Tech; CC BY 4.0). Model: Timestral by Mistral AI, weights under a modified MIT licence. Forecasts computed on {date}.",
 });
 Object.assign(window.I18N.fr, {
+  b_ref: "Timestral 28M, version de référence",
+  ab_size_note: "<strong>Version de référence.</strong> Le reste du site montre <strong>Timestral 28M</strong> : sur M5, il est aussi précis que le 209M (WRMSSE 0,615 contre 0,617) et environ 7 fois plus rapide. Le 209M ne fait nettement mieux que sur les quantiles (WSPL 0,154, à égalité avec le vainqueur de la piste Incertitude, contre 0,162). Le 5M décroche sur des données journalières (0,712).",
+  ab_size_note__vn1: "<strong>Version de référence.</strong> Le reste du site montre <strong>Timestral 28M</strong>. Sur VN1, la taille ne change presque rien une fois le quantile calibré : 0,468 pour le 5M, 0,470 pour le 28M et 0,467 pour le 209M, tous 3e du concours, pour 1, 5 et 36 ms par série.",
   diag_title: "D'où vient l'écart", diag_y: "Unités vendues / semaine (toutes séries)",
   diag_intro: "Ventes hebdomadaires des 15 053 séries additionnées. L'historique s'arrête juste après le pic de fin d'année et les deux semaines de fêtes ; la prévision médiane part de ce creux, le vainqueur du concours revient au niveau habituel de janvier.",
   diag_ts_median: "{cfg} · médiane", diag_bias_by: "Biais par profil de demande (% des ventes totales)", diag_total: "Total", diag_of_sales: "des ventes",

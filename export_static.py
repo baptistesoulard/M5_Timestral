@@ -36,6 +36,9 @@ CHUNK = 512
 HIST_DAYS = 364
 DISPLAY_Q = (0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99)
 REF_KEYS = ("snaive", "tsb", "ets", "winner")
+# reference version of Timestral shown across the website (the other sizes stay in the size / covariates table):
+# as accurate as the 209M model on both benchmarks and about 7 times faster
+REFERENCE_MODEL = "Timestral-28M"
 # Published results of the M5 Uncertainty track (Makridakis et al., International Journal of Forecasting, 2022, table 5)
 UNCERTAINTY_PUBLISHED = [
     {"key": "unc_winner", "wspl": 0.154,
@@ -384,8 +387,11 @@ def build_m5(args, out: Path) -> dict:
     order = {c["name"]: k for k, c in enumerate(json.loads((ROOT / "bench" / "configs.json").read_text()))
              if c.get("bench", "m5") == "m5"}
     cfg_meta.sort(key=lambda c: order.get(c["name"], 99))
-    best = min(cfg_meta, key=lambda c: min(c["wrmsse"]["median|bottom-up"], c["wrmsse"]["mean|bottom-up"]),
-               default=None)
+    ref_cfgs = [c for c in cfg_meta if c["model"] == REFERENCE_MODEL] or cfg_meta
+    # reference configuration: the reference model with calendar covariates when available
+    best = next((c for c in ref_cfgs if c["covariates"] == "calendar"),
+                min(ref_cfgs, key=lambda c: min(c["wrmsse"]["median|bottom-up"], c["wrmsse"]["mean|bottom-up"]),
+                    default=None))
 
     # baselines and competition entries (computed by evaluate.py, shipped in app_assets)
     base_scores = pd.read_csv(ROOT / "app_assets" / "scores.csv")
@@ -412,7 +418,7 @@ def build_m5(args, out: Path) -> dict:
               if window.start <= d < window.stop and e]
     meta = {
         "generated": time.strftime("%Y-%m-%d"), "chunk": CHUNK, "hist_days": HIST_DAYS, "horizon": HORIZON,
-        "bench": "m5", "freq": "D", "display_q": DISPLAY_Q, "refs": ref_keys,
+        "bench": "m5", "freq": "D", "display_q": DISPLAY_Q, "refs": ref_keys, "reference_model": REFERENCE_MODEL,
         "start_date": str(cal["date"].iloc[window.start]), "test_start": str(cal["date"].iloc[t_end]),
         "events": events, "configs": cfg_meta, "default_config": best["name"] if best else None,
         "baselines": baselines, "by_level": by_level,
