@@ -156,7 +156,7 @@ table.levels .num { text-align: right; font-variant-numeric: tabular-nums; }
   .explore-grid { grid-template-columns: minmax(0, 1fr); }
   .controls { position: static; }
   .chart { height: 380px; }
-  #lv-chart { height: 460px; }
+  #lv-chart, #unc-chart { height: 460px; }
 }
 @media (max-width: 520px) {
   .head-row { flex-direction: column-reverse; gap: 10px; }

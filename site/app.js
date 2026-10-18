@@ -318,7 +318,7 @@ function renderBenchmark() {
       kpi(t("b_vs_ets"), fpct(rel(base.ets), true), `WRMSSE ${fnum(base.ets, 4)}`, rel(base.ets) > 0 ? "good" : "bad"),
       kpi(t("b_vs_snaive"), fpct(rel(base.snaive), true), `WRMSSE ${fnum(base.snaive, 4)}`, rel(base.snaive) > 0 ? "good" : "bad"),
       kpi(t("b_vs_winner"), fpct(rel(winner && winner[1]), true), `WRMSSE ${fnum(winner && winner[1], 4)}`, rel(winner && winner[1]) > 0 ? "good" : "bad"),
-    ].join("");
+    ].join("") + uncertaintyKpi();
   } else {
     $("bench-kpis").innerHTML = "";
   }
@@ -368,22 +368,67 @@ function renderBenchmark() {
       }), plotConfig);
   }
 
+  renderUncertainty();
+
   // ablation
   const emp = m.baselines.find((b) => b.metric === "wspl");
   if (!cfgs.length) { $("ab-table").innerHTML = `<tbody><tr><td>${t("ab_empty")}</td></tr></tbody>`; }
   else {
-    const ref = cfgs.find((c) => c.covariates === "none");
-    const refS = ref ? bestVariant(ref).s : null;
+    const noneOf = (model) => cfgs.find((c) => c.covariates === "none" && c.model === model);
     $("ab-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th>${t("ab_cov")}</th><th class="num">${t("ab_bu_med")}</th><th class="num">${t("ab_bu_mean")}</th><th class="num">${t("ab_direct")}</th><th class="num">${t("ab_delta")}</th><th class="num">${t("ab_wspl")}</th><th class="num">${t("ab_speed")}</th></tr></thead><tbody>` +
       cfgs.map((c) => {
-        const b = bestVariant(c), d = refS && c.model === ref.model && c !== ref ? 1 - b.s / refS : null;
+        const ref = noneOf(c.model), b = bestVariant(c), d = ref && c !== ref ? 1 - b.s / bestVariant(ref).s : null;
         const delta = d == null ? "–" : `<span class="${d > 0 ? "delta-good" : "delta-bad"}">${fpct(d, true)}</span>`;
         const dir = Math.min(c.wrmsse["median|direct"], c.wrmsse["mean|direct"]);
         return `<tr><td>${esc(c.model.replace("Timestral-", "Timestral "))}</td><td title="${esc(t("cov_desc_" + c.covariates))}">${esc(t("cov_" + c.covariates))}</td><td class="num">${fnum(c.wrmsse["median|bottom-up"], 4)}</td><td class="num">${fnum(c.wrmsse["mean|bottom-up"], 4)}</td><td class="num">${fnum(dir, 4)}</td><td class="num">${delta}</td><td class="num">${fnum(c.wspl, 4)}</td><td class="num">${fint(c.ms_per_series)}</td></tr>`;
       }).join("") + "</tbody>";
   }
-  $("ab-note").innerHTML = t("ab_note", { emp: emp ? fnum(emp.score, 4) : "–" }) + "<br>" +
+  $("ab-note").innerHTML = t("ab_note", { emp: emp ? fnum(emp.score, 4) : "–" }) + "<br>" + t("ab_note_median") + "<br>" +
     ["none", "calendar", "full", "rich"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? "\u00a0:" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
+}
+
+
+function bestWspl() {
+  const cfgs = S.meta.configs;
+  return cfgs.length ? cfgs.reduce((a, b) => (b.wspl < a.wspl ? b : a)) : null;
+}
+function uncertaintyKpi() {
+  const best = bestWspl(), pub = (S.meta.uncertainty_published || []).find((p) => p.key === "unc_winner");
+  if (!best || !pub) return "";
+  const g = 1 - best.wspl / pub.wspl;
+  return kpi(t("b_unc"), fpct(g, true), t("b_unc_sub", { cfg: esc(cfgLabel(best)), v: fnum(best.wspl, 3), w: fnum(pub.wspl, 3) }), g >= -0.005 ? "good" : "bad");
+}
+function renderUncertainty() {
+  const m = S.meta, rows = [];
+  for (const c of m.configs) rows.push({ name: cfgLabel(c), type: "tsfm", s: c.wspl, levels: null, cfg: c.name });
+  for (const p of m.uncertainty_published || []) rows.push({ name: t(p.key), type: p.key === "unc_winner" ? "comp" : "stat", s: p.wspl, levels: p.levels });
+  const emp = m.baselines.find((b) => b.metric === "wspl");
+  if (emp) rows.push({ name: t("unc_emp"), type: "stat", s: emp.score });
+  rows.sort((a, b) => a.s - b.s);
+  const tag = { stat: `<span class="tag">${t("type_stat")}</span>`, comp: `<span class="tag">${t("type_comp")}</span>`, tsfm: `<span class="tag tsfm">${t("type_tsfm")}</span>` };
+  $("unc-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th class="num">WSPL</th></tr></thead><tbody>` +
+    rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${esc(r.name)}</td><td>${tag[r.type]}</td><td class="num">${fnum(r.s, 3)}</td></tr>`).join("") +
+    `</tbody><caption class="muted" style="caption-side:bottom;text-align:left;padding:8px 12px"><a href="${esc(m.uncertainty_source || "#")}">${t("unc_source")}</a></caption>`;
+  if (typeof Plotly === "undefined") return;
+  const small = narrow();
+  const xs = small ? t("lv_names").map((_, k) => String(k + 1)) : t("lv_names").map((n, k) => `${k + 1}. ${n}`);
+  const lvl = (method) => {
+    const out = new Array(12).fill(null);
+    for (const r of m.by_level) if (r.metric === "wspl" && r.method === method && r.level !== "Total") out[+r.level.replace("Level", "") - 1] = r.score;
+    return out;
+  };
+  const best = bestWspl(), series = [];
+  if (best) series.push({ name: cfgLabel(best), y: lvl(best.name), color: css("--accent"), width: 3 });
+  for (const p of m.uncertainty_published || []) series.push({ name: t(p.key), y: p.levels, color: css(p.key === "unc_winner" ? "--c-winner" : "--c-snaive") });
+  if (emp) series.push({ name: t("unc_emp"), y: lvl(emp.method), color: css("--c-history") });
+  Plotly.react("unc-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8 }, marker: { size: 6 } })),
+    plotLayout({
+      margin: small ? { l: 44, r: 10, t: 10, b: 40 } : { l: 52, r: 14, t: 10, b: 110 }, hovermode: "x unified",
+      xaxis: { ...plotLayout().xaxis, tickangle: small ? 0 : -35, type: "category", title: small ? { text: t("level"), font: { size: 12, color: css("--muted") } } : undefined },
+      yaxis: { ...plotLayout().yaxis, title: { text: "SPL", font: { size: 12, color: css("--muted") } } },
+      legend: small ? { orientation: "h", yanchor: "top", y: -0.22, x: 0, font: { size: 11, color: css("--muted") } }
+                    : { orientation: "v", x: 1.01, y: 1, font: { size: 11.5, color: css("--muted") } },
+    }), plotConfig);
 }
 
 // ------------------------------------------------------------------ static texts, language, tabs
@@ -424,7 +469,7 @@ function setTab(tab, push = true) {
   }
   if (push) history.replaceState(null, "", "#" + tab);
   if (typeof Plotly !== "undefined") requestAnimationFrame(() => {
-    for (const id of ["chart", "svc-chart", "lv-chart"]) { const el = $(id); if (el && el.data && !el.closest("[hidden]")) Plotly.Plots.resize(el); }
+    for (const id of ["chart", "svc-chart", "lv-chart", "unc-chart"]) { const el = $(id); if (el && el.data && !el.closest("[hidden]")) Plotly.Plots.resize(el); }
   });
 }
 

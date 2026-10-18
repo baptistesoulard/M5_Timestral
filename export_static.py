@@ -36,6 +36,14 @@ CHUNK = 512
 HIST_DAYS = 364
 DISPLAY_Q = (0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99)
 REF_KEYS = ("snaive", "tsb", "ets", "winner")
+# Published results of the M5 Uncertainty track (Makridakis et al., International Journal of Forecasting, 2022, table 5)
+UNCERTAINTY_PUBLISHED = [
+    {"key": "unc_winner", "wspl": 0.154,
+     "levels": [0.074, 0.096, 0.113, 0.091, 0.112, 0.116, 0.136, 0.135, 0.159, 0.284, 0.270, 0.265]},
+    {"key": "unc_arima", "wspl": 0.205,
+     "levels": [0.158, 0.148, 0.163, 0.147, 0.167, 0.170, 0.202, 0.178, 0.201, 0.322, 0.298, 0.302]},
+]
+UNCERTAINTY_SOURCE = "https://www.researchgate.net/publication/356943392_The_M5_uncertainty_competition_Results_findings_and_conclusions"
 
 
 # ============================================================================ forecast
@@ -273,6 +281,7 @@ def cmd_build(args) -> None:
         "start_date": str(cal["date"].iloc[window.start]), "test_start": str(cal["date"].iloc[t_end]),
         "events": events, "configs": cfg_meta, "default_config": best["name"] if best else None,
         "baselines": baselines, "by_level": by_level,
+        "uncertainty_published": UNCERTAINTY_PUBLISHED, "uncertainty_source": UNCERTAINTY_SOURCE,
         "examples": pick_examples(data, ev, hist, ref),
         "states": sorted(ids["state_id"].unique()), "stores": sorted(ids["store_id"].unique()),
         "cats": sorted(ids["cat_id"].unique()), "depts": depts,
