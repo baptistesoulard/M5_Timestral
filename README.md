@@ -48,8 +48,13 @@ Le site public est statique : Timestral est exécuté une fois, gratuitement, su
 (`.github/workflows/site.yml`), puis le site affiche les prévisions précalculées. Il est publié sur la branche
 `gh-pages` (adresse : `https://baptistesoulard.github.io/M5_Timestral/`).
 
-- `bench/configs.json` : configurations calculées (taille du modèle, covariables, nombre de jobs parallèles).
-- `bench/run.json` : `"mode": "probe"` pour un test rapide sur quelques centaines de séries, `"full"` pour le run complet et la publication ; `"only"` limite à certaines configurations, `"reuse_run_id"` réutilise les prévisions d'un run précédent.
+Le site couvre deux benchmarks, au choix en haut de page : **M5** (Walmart, journalier, 42 840 séries) et
+**VN1** (SupChains, hebdomadaire, 15 053 séries produit × entrepôt, score = MAE % + |Biais %|), plus un onglet
+« Lexique » qui explique indicateurs et méthodes.
+
+- `bench/configs.json` : configurations calculées (taille du modèle, covariables, nombre de jobs parallèles). `"bench": "vn1"` pour VN1 ; `"kind": "baseline"` pour les méthodes statistiques lentes (AutoARIMA) lancées par `bench_baselines.py`.
+- `bench/run.json` : `"mode": "probe"` pour un test rapide sur quelques centaines de séries, `"full"` pour le run complet et la publication ; `"only"` limite à certaines configurations, `"reuse_run_id"` / `"reuse_run_ids"` réutilisent les prévisions de runs précédents, `"target": "live"` publie sur `gh-pages` (sinon sur la branche de relecture `site-staging`).
+- VN1 : données et prévisions du top 5 téléchargées depuis [SupChains/VN1](https://github.com/SupChains/VN1) (`vn1bench/`), page construite par `vn1_static.py`.
 - Chaque push modifiant ces fichiers relance le calcul. Le rapport (scores, durées, erreurs) est écrit sur la branche `bench-results`.
 - Covariables testées : `none` (ventes seules), `calendar` (SNAP, événements, jour de semaine), `full` (+ prix relatif, niveaux article), `rich` (+ indice de prix, profondeur de remise, part d'articles en vente, jour du mois, jours avant / depuis un événement, fermeture de Noël, type d'événement, pour tous les niveaux).
 
