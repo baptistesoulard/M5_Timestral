@@ -97,11 +97,12 @@ async function seriesData(i) {
   return out;
 }
 async function forecastData(cfg, i) {
-  const h = S.meta.horizon, nq = S.meta.display_q.length;
-  const v = await row(`${cfg}/q`, i, nq * h + h);
+  const h = S.meta.horizon, nq = S.meta.display_q.length, c = S.meta.configs.find((x) => x.name === cfg);
+  const extra = c && c.calib ? h : 0; // calibrated point forecast stored after the mean
+  const v = await row(`${cfg}/q`, i, nq * h + h + extra);
   const q = [];
   for (let a = 0; a < nq; a++) q.push(v.subarray(a * h, (a + 1) * h));
-  return { q, mean: v.subarray(nq * h, nq * h + h) };
+  return { q, mean: v.subarray(nq * h, nq * h + h), calib: extra ? v.subarray(nq * h + h, nq * h + 2 * h) : null };
 }
 function quantileAt(fc, u) {
   const L = S.meta.display_q, h = S.meta.horizon, out = new Float64Array(h);
@@ -126,7 +127,15 @@ function metrics(i, f, y) {
 }
 // the error used to rank methods on one series: RMSSE for M5, VN1 score for VN1
 const err = (m) => (isVN1() ? m.score : m.rmsse);
-const bestVN1 = (c) => (c.mean.score < c.median.score ? { v: "mean", ...c.mean } : { v: "median", ...c.median });
+// VN1 point forecast of a configuration: the quantile chosen on phase 1 (validation) when available, so that
+// nothing is selected on the test weeks; otherwise the better of median and mean.
+const bestVN1 = (c) => (c.calib ? { v: "calib", ...c.calib.test }
+  : c.mean.score < c.median.score ? { v: "mean", ...c.mean } : { v: "median", ...c.median });
+// the configuration put forward: best on phase 1 when calibrated, otherwise best on the test
+const valScore = (c) => (c.calib ? c.calib.val.score : bestVN1(c).score);
+function varLabel(c, v) {
+  return v === "calib" ? t("var_calib", { u: Math.round(c.calib.u * 100) }) : t("var_" + v);
+}
 
 // ------------------------------------------------------------------ dates
 function dayDate(offset) {
@@ -273,6 +282,7 @@ async function renderExplore() {
   S.current = { i, sd, fc, c };
   const y = sd.actual, h = y.length, med = quantileAt(fc, 0.5);
   const rows = { median: metrics(i, med, y), mean: metrics(i, fc.mean, y) };
+  if (fc.calib) rows.calib = metrics(i, fc.calib, y);
   for (const r of S.meta.refs) rows[r] = metrics(i, sd.ref[r], y);
   const lo80 = quantileAt(fc, 0.1), hi80 = quantileAt(fc, 0.9);
   let in80 = 0;
@@ -285,7 +295,7 @@ async function renderExplore() {
 
   if (isVN1()) {
     const v = bestVN1(c).v, T = rows[v];
-    cards.push(kpi(t("k_score"), fnum(T.score, 3), t("k_score_sub", { mae: fpct(T.wape), bias: fpct(T.bias, true), v: t("var_" + v) })));
+    cards.push(kpi(t("k_score"), fnum(T.score, 3), t("k_score_sub", { mae: fpct(T.wape), bias: fpct(T.bias, true), v: varLabel(c, v) })));
     for (const [ref, key] of [["naive", "k_vs_naive"], ["vn1_1st", "k_vs_winner"]]) {
       if (!rows[ref]) continue;
       const g = 1 - T.score / rows[ref].score;
@@ -324,6 +334,7 @@ async function renderExplore() {
 
   // error table
   const names = { median: t("median"), mean: t("mean") };
+  if (c.calib) names.calib = t("calib_name", { u: Math.round(c.calib.u * 100) });
   for (const r of S.meta.refs) names[r] = refLabel(r);
   const order = Object.keys(rows);
   let html;
@@ -364,7 +375,11 @@ function drawForecast() {
     band(quantileAt(fc, 0.1), quantileAt(fc, 0.9), t("band80"), 0.28),
     { x: fx, y: Array.from(quantileAt(fc, 0.5)), name: t("median"), mode: "lines", line: { color: acc, width: 2.6 } },
   ];
-  if (isVN1()) traces.push({ x: fx, y: Array.from(fc.mean), name: t("mean"), mode: "lines", line: { color: acc, width: 1.4, dash: "dash" } });
+  if (isVN1()) {
+    traces.push({ x: fx, y: Array.from(fc.mean), name: t("mean"), mode: "lines", line: { color: acc, width: 1.2, dash: "dot" } });
+    const c = S.current.c;
+    if (fc.calib) traces.push({ x: fx, y: Array.from(fc.calib), name: t("calib_name", { u: Math.round(c.calib.u * 100) }), mode: "lines", line: { color: css("--accent-ink"), width: 2, dash: "dash" } });
+  }
   for (const box of document.querySelectorAll("#compare input:checked")) {
     const r = box.value;
     if (!sd.ref[r]) continue;
@@ -560,12 +575,12 @@ function renderBenchmarkVN1() {
   const stats = m.baselines.filter((b) => b.family === "benchmark");
   const bestStat = stats.reduce((a, b) => (b.score < a.score ? b : a), stats[0]);
   if (cfgs.length) {
-    const best = cfgs.reduce((a, b) => (bestVN1(b).score < bestVN1(a).score ? b : a)), B = bestVN1(best);
+    const best = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), B = bestVN1(best);
     const rel = (r) => (r ? 1 - B.score / r.score : NaN);
     const vs = (key, r, sub) => kpi(t(key), fpct(rel(r), true), sub, rel(r) > 0 ? "good" : "bad");
     const rank = comp.filter((c) => c.score < B.score).length + 1;
     $("bench-kpis").innerHTML = [
-      kpi(t("b_best") + help("vn1-score"), fnum(B.score, 4), `${esc(cfgLabel(best))} · ${t("var_" + B.v)} · MAE ${fpct(B.mae, false, 1)} · ${t("col_bias")} ${fpct(B.bias, true, 1)}`, "lead"),
+      kpi(t(best.calib ? "b_best_vn1" : "b_best") + help("calibration"), fnum(B.score, 4), `${esc(cfgLabel(best))} · ${varLabel(best, B.v)} · MAE ${fpct(B.mae, false, 1)} · ${t("col_bias")} ${fpct(B.bias, true, 1)}`, "lead"),
       vs("k_vs_naive", base.naive, t("k_score_of", { v: fnum(base.naive && base.naive.score, 4) })),
       bestStat ? vs("b_vs_beststat", bestStat, `${esc(methodLabel(bestStat.method))} · ${fnum(bestStat.score, 4)}`) : "",
       vs("b_vs_winner", base.vn1_1st, t("k_score_of", { v: fnum(base.vn1_1st && base.vn1_1st.score, 4) })),
@@ -579,7 +594,7 @@ function renderBenchmarkVN1() {
     name: methodLabel(b.method), anchor: methodAnchor(b.method), point: "",
     type: b.family === "competition" ? "comp" : b.family === "official" ? "official" : "stat", ...b,
   }));
-  for (const c of cfgs) { const b = bestVN1(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", point: t("var_" + b.v), ...b }); }
+  for (const c of cfgs) { const b = bestVN1(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", point: varLabel(c, b.v), ...b }); }
   rows.sort((a, b) => a.score - b.score);
   $("lb-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th>${t("lb_point")}</th><th class="num">${t("col_score")}</th><th class="num">MAE%</th><th class="num">${t("col_bias")}</th></tr></thead><tbody>` +
     rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.score, 4)}</td><td class="num">${fpct(r.mae, false, 1)}</td><td class="num">${fpct(r.bias, true, 1)}</td></tr>`).join("") + "</tbody>";
@@ -587,14 +602,43 @@ function renderBenchmarkVN1() {
   if (!cfgs.length) { $("ab-table").innerHTML = `<tbody><tr><td>${t("ab_empty")}</td></tr></tbody>`; }
   else {
     const noneOf = (model) => cfgs.find((c) => c.covariates === "none" && c.model === model);
-    $("ab-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th>${t("ab_cov")}</th><th class="num">${t("ab_med")}</th><th class="num">${t("ab_mean")}</th><th class="num">${t("ab_delta")}</th><th class="num">${t("col_bias")}</th><th class="num">${t("ab_cov80")}</th><th class="num">${t("ab_speed")}</th></tr></thead><tbody>` +
+    const hasCal = cfgs.some((c) => c.calib);
+    $("ab-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th>${t("ab_cov")}</th><th class="num">${t("ab_med")}</th><th class="num">${t("ab_mean")}</th>${hasCal ? `<th class="num">${t("ab_cal")}</th>` : ""}<th class="num">${t("ab_delta")}</th><th class="num">${t("col_bias")}</th><th class="num">${t("ab_cov80")}</th><th class="num">${t("ab_speed")}</th></tr></thead><tbody>` +
       cfgs.map((c) => {
         const ref = noneOf(c.model), b = bestVN1(c), d = ref && c !== ref ? 1 - b.score / bestVN1(ref).score : null;
         const delta = d == null ? "–" : `<span class="${d > 0 ? "delta-good" : "delta-bad"}">${fpct(d, true, 1)}</span>`;
-        return `<tr><td>${esc(c.model.replace("Timestral-", "Timestral "))}</td><td title="${esc(t("cov_desc_" + c.covariates))}">${esc(t("cov_" + c.covariates))}</td><td class="num">${fnum(c.median.score, 4)}</td><td class="num">${fnum(c.mean.score, 4)}</td><td class="num">${delta}</td><td class="num">${fpct(b.bias, true, 1)}</td><td class="num">${fpct(c.coverage80)}</td><td class="num">${fint(c.ms_per_series)}</td></tr>`;
+        return `<tr><td>${esc(c.model.replace("Timestral-", "Timestral "))}</td><td title="${esc(t("cov_desc_" + c.covariates))}">${esc(t("cov_" + c.covariates))}</td><td class="num">${fnum(c.median.score, 4)}</td><td class="num">${fnum(c.mean.score, 4)}</td>${hasCal ? `<td class="num">${c.calib ? `${fnum(c.calib.test.score, 4)} <span class="muted">(P${Math.round(c.calib.u * 100)})</span>` : "–"}</td>` : ""}<td class="num">${delta}</td><td class="num">${fpct(b.bias, true, 1)}</td><td class="num">${fpct(c.coverage80)}</td><td class="num">${fint(c.ms_per_series)}</td></tr>`;
       }).join("") + "</tbody>";
   }
+  renderCalibration();
   $("ab-note").innerHTML = t("ab_note") + "<br>" + ["none", "price"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
+}
+
+function renderCalibration() {
+  const cfgs = S.meta.configs.filter((c) => c.calib);
+  $("cal-section").hidden = !cfgs.length;
+  if (!cfgs.length) return;
+  const sel = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), C = sel.calib;
+  $("cal-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th class="num">${t("cal_u")}</th><th class="num">${t("cal_val_med")}</th><th class="num">${t("cal_val_cal")}</th><th class="num">${t("cal_test_med")}</th><th class="num">${t("cal_test_cal")}</th><th class="num">${t("cal_gain")}</th><th class="num">${t("col_bias")}</th></tr></thead><tbody>` +
+    cfgs.map((c) => {
+      const k = c.calib, g = 1 - k.test.score / c.median.score;
+      return `<tr class="${c === sel ? "hl" : ""}"><td>${esc(cfgLabel(c))}</td><td class="num">P${Math.round(k.u * 100)}</td><td class="num">${fnum(k.val_median.score, 4)}</td><td class="num">${fnum(k.val.score, 4)}</td><td class="num">${fnum(c.median.score, 4)}</td><td class="num">${fnum(k.test.score, 4)}</td><td class="num"><span class="${g > 0 ? "delta-good" : "delta-bad"}">${fpct(g, true, 1)}</span></td><td class="num">${fpct(c.median.bias, true, 1)} → ${fpct(k.test.bias, true, 1)}</td></tr>`;
+    }).join("") + "</tbody>";
+  $("cal-note").innerHTML = t("cal_note", { cfg: esc(cfgLabel(sel)), u: Math.round(C.u * 100), ub: Math.round(C.test_best_u * 100), sb: fnum(C.test_best, 4), s: fnum(C.test.score, 4) });
+  if (typeof Plotly === "undefined") return;
+  const x = C.curve.u.map((u) => Math.round(u * 100)), acc = css("--accent"), muted = css("--muted");
+  Plotly.react("cal-chart", [
+    { x, y: C.curve.val, name: t("cal_curve_val"), mode: "lines", line: { color: css("--c-history"), width: 2 } },
+    { x, y: C.curve.test, name: t("cal_curve_test"), mode: "lines", line: { color: acc, width: 2.4 } },
+  ], plotLayout({
+    margin: { l: 56, r: 14, t: 10, b: 44 }, hovermode: "x unified",
+    shapes: [50, Math.round(C.u * 100)].map((u, k) => ({ type: "line", x0: u, x1: u, yref: "paper", y0: 0, y1: 1, line: { color: k ? acc : muted, width: 1, dash: "dash" } })),
+    annotations: [{ x: 50, y: 1, yref: "paper", text: t("median_short"), showarrow: false, xanchor: "right", xshift: -4, font: { size: 11, color: muted } },
+      { x: Math.round(C.u * 100), y: 1, yref: "paper", text: t("cal_chosen", { u: Math.round(C.u * 100) }), showarrow: false, xanchor: "left", xshift: 4, font: { size: 11, color: acc } }],
+    xaxis: { ...plotLayout().xaxis, ticksuffix: "", title: { text: t("cal_x"), font: { size: 12, color: muted } } },
+    yaxis: { ...plotLayout().yaxis, rangemode: "normal", title: { text: t("col_score"), font: { size: 12, color: muted } } },
+    legend: { orientation: "h", yanchor: "top", y: -0.2, x: 0, font: { size: 11.5, color: muted } },
+  }), plotConfig());
 }
 
 // ------------------------------------------------------------------ static texts, language, tabs, benchmark switch
@@ -652,7 +696,7 @@ function setTab(tab, push = true) {
   }
   if (push) writeHash();
   if (typeof Plotly !== "undefined") requestAnimationFrame(() => {
-    for (const id of ["chart", "svc-chart", "lv-chart", "unc-chart"]) { const el = $(id); if (el && el.data && !el.closest("[hidden]")) Plotly.Plots.resize(el); }
+    for (const id of ["chart", "svc-chart", "lv-chart", "unc-chart", "cal-chart"]) { const el = $(id); if (el && el.data && !el.closest("[hidden]")) Plotly.Plots.resize(el); }
   });
 }
 function showGlossary(anchor) {

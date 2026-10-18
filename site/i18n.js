@@ -114,6 +114,15 @@ window.I18N = {
 // Benchmark switch (M5 / VN1), VN1 texts and glossary links. A key ending in "__vn1" or "__m5" replaces the plain
 // key on that benchmark only.
 Object.assign(window.I18N.en, {
+  var_calib: "P{u}, chosen on phase 1", calib_name: "Timestral · P{u} (calibrated)", b_best_vn1: "Timestral put forward",
+  ab_cal: "Score calibrated",
+  cal_title: "Calibration: which quantile to use as the forecast",
+  cal_intro: "The median under-forecasts VN1 by about 7% in total and the mean over-forecasts by 13 to 17%. The point forecast is therefore taken at the quantile that minimises the VN1 score on <strong>phase 1</strong> (history up to 2 October 2023, forecast of the 13 following weeks, the competition's public leaderboard period). That single quantile is then applied once to the official test weeks (phase 2), which play no part in the choice. The configuration put forward is also the best one on phase 1.",
+  cal_u: "Quantile chosen", cal_val_med: "Phase 1 · median", cal_val_cal: "Phase 1 · calibrated", cal_test_med: "Test · median",
+  cal_test_cal: "Test · calibrated", cal_gain: "Gain on test", cal_curve_val: "Phase 1 (used for the choice)", cal_curve_test: "Test weeks (phase 2, for information)",
+  cal_chosen: "P{u} chosen", cal_x: "Quantile used as point forecast (P)",
+  cal_note: "Curves for {cfg}. P{u} was chosen on phase 1 and scores {s} on the test; the best quantile in hindsight on the test would have been P{ub} ({sb}), which cannot be known in advance.",
+  ab_note__vn1: "<strong>VN1 score</strong> = MAE% + |Bias%| over all series and weeks. <strong>Median / mean</strong>: the point forecast taken from Timestral's distribution; the median minimises the absolute error of each series, the mean keeps totals unbiased. <strong>Calibrated</strong>: the quantile chosen on phase 1 (see above). <strong>Coverage</strong>: share of series × weeks where actual sales fell inside the 80% band (ideal ≈ 80%).",
   title__vn1: "Timestral × VN1",
   subtitle__vn1: "Mistral's time-series foundation model, used zero-shot on the 15,053 weekly product × warehouse series of the VN1 supply chain forecasting competition, against the competition's top 5 and statistical methods. Official test period: 8 January – 1 April 2024 (13 weeks).",
   bench_m5: "Walmart · daily", bench_vn1: "e-commerce · weekly", tab_glossary: "Glossary", what_is: "What does this mean?",
@@ -141,7 +150,6 @@ Object.assign(window.I18N.en, {
   lb_title__vn1: "Leaderboard · official VN1 score (lower is better)",
   type_official: "Official benchmark", type_comp__vn1: "VN1 top 5",
   ab_med: "Score median", ab_mean: "Score mean", ab_cov80: "80% band coverage",
-  ab_note__vn1: "<strong>VN1 score</strong> = MAE% + |Bias%| over all series and weeks. <strong>Median / mean</strong>: the point forecast taken from Timestral's distribution; the median minimises the absolute error of each series, the mean keeps totals unbiased. <strong>Coverage</strong>: share of series × weeks where actual sales fell inside the 80% band (ideal ≈ 80%).",
   m_arima: "AutoARIMA (SARIMA, 7-day season)", m_arima__vn1: "AutoARIMA (SARIMA, 52-week season)",
   m_naive__vn1: "Naive (last week) · official", m_ma12: "12-week moving average · official",
   m_snaive__vn1: "Seasonal naive (52 weeks)", m_ets__vn1: "AutoETS (yearly season)",
@@ -152,6 +160,15 @@ Object.assign(window.I18N.en, {
   footer__vn1: "Data: VN1 competition (SupChains, Flieber, Syrup Tech; CC BY 4.0). Model: Timestral by Mistral AI, weights under a modified MIT licence. Forecasts computed on {date}.",
 });
 Object.assign(window.I18N.fr, {
+  var_calib: "P{u}, choisi sur la phase 1", calib_name: "Timestral · P{u} (calibré)", b_best_vn1: "Timestral retenu",
+  ab_cal: "Score calibré",
+  cal_title: "Calibration : quel quantile prendre comme prévision",
+  cal_intro: "La médiane sous-prévoit VN1 d'environ 7 % au total et l'espérance surprévoit de 13 à 17 %. La prévision ponctuelle est donc prise au quantile qui minimise le score VN1 sur la <strong>phase 1</strong> (historique jusqu'au 2 octobre 2023, prévision des 13 semaines suivantes, la période du classement public du concours). Ce quantile unique est ensuite appliqué une seule fois aux semaines de test officielles (phase 2), qui n'interviennent pas dans le choix. La configuration retenue est elle aussi la meilleure sur la phase 1.",
+  cal_u: "Quantile retenu", cal_val_med: "Phase 1 · médiane", cal_val_cal: "Phase 1 · calibré", cal_test_med: "Test · médiane",
+  cal_test_cal: "Test · calibré", cal_gain: "Gain sur le test", cal_curve_val: "Phase 1 (sert au choix)", cal_curve_test: "Semaines de test (phase 2, pour information)",
+  cal_chosen: "P{u} retenu", cal_x: "Quantile pris comme prévision ponctuelle (P)",
+  cal_note: "Courbes pour {cfg}. Le P{u} a été choisi sur la phase 1 et obtient {s} sur le test ; a posteriori, le meilleur quantile sur le test aurait été le P{ub} ({sb}), ce qui ne pouvait pas se savoir à l'avance.",
+  ab_note__vn1: "<strong>Score VN1</strong> = MAE % + |Biais %| sur toutes les séries et semaines. <strong>Médiane / espérance</strong> : la prévision ponctuelle tirée de la distribution de Timestral ; la médiane minimise l'erreur absolue de chaque série, l'espérance garde des totaux sans biais. <strong>Calibré</strong> : le quantile choisi sur la phase 1 (voir plus haut). <strong>Couverture</strong> : part des couples série × semaine où les ventes réelles sont tombées dans la bande 80 % (idéal ≈ 80 %).",
   title__vn1: "Timestral × VN1",
   subtitle__vn1: "Le modèle de fondation de séries temporelles de Mistral, utilisé sans entraînement (zero-shot) sur les 15 053 séries hebdomadaires produit × entrepôt du concours de prévision supply chain VN1, face au top 5 du concours et aux méthodes statistiques. Période de test officielle : 8 janvier – 1er avril 2024 (13 semaines).",
   bench_m5: "Walmart · jour", bench_vn1: "e-commerce · semaine", tab_glossary: "Lexique", what_is: "Que veut dire cet indicateur ?",
@@ -178,7 +195,6 @@ Object.assign(window.I18N.fr, {
   lb_title__vn1: "Classement · score VN1 officiel (plus bas = meilleur)",
   type_official: "Benchmark officiel", type_comp__vn1: "Top 5 VN1",
   ab_med: "Score médiane", ab_mean: "Score espérance", ab_cov80: "Couverture bande 80 %",
-  ab_note__vn1: "<strong>Score VN1</strong> = MAE % + |Biais %| sur toutes les séries et semaines. <strong>Médiane / espérance</strong> : la prévision ponctuelle tirée de la distribution de Timestral ; la médiane minimise l'erreur absolue de chaque série, l'espérance garde des totaux sans biais. <strong>Couverture</strong> : part des couples série × semaine où les ventes réelles sont tombées dans la bande 80 % (idéal ≈ 80 %).",
   m_arima: "AutoARIMA (SARIMA, saison 7 jours)", m_arima__vn1: "AutoARIMA (SARIMA, saison 52 semaines)",
   m_naive__vn1: "Naïf (semaine précédente) · officiel", m_ma12: "Moyenne mobile 12 semaines · officiel",
   m_snaive__vn1: "Naïf saisonnier (52 semaines)", m_ets__vn1: "AutoETS (saison annuelle)",
