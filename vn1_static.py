@@ -23,22 +23,36 @@ FAMILY = {"vn1_1st": "competition", "vn1_2nd": "competition", "vn1_3rd": "compet
 CALIB_GRID = np.round(np.arange(0.30, 0.801, 0.01), 2)
 
 
-def calibrate(q_val, levels_val, actual_val, q_test, levels_test, actual_test) -> dict:
-    """Choose the quantile level u used as point forecast by minimising the VN1 score on phase 1 (validation),
-    then apply that single u to the phase-2 forecasts. The test curve is computed only for display."""
+# backtest windows used to choose the quantile: history up to the origin, next 13 weeks forecast.
+# Decided before looking at any result: the four quarters of 2023 (the last one is phase 1).
+WINDOWS = [("vn1bt131", "bt131"), ("vn1bt144", "bt144"), ("vn1bt157", "bt157"), ("vn1val", "val")]
+
+
+def calibrate(windows, q_test, levels_test, actual_test) -> dict:
+    """windows: [(label, q, levels, actual)]. Choose the quantile level u used as point forecast by minimising the
+    VN1 score averaged over the windows, then apply that single u to the phase-2 forecasts. The test curve is
+    computed only for display. Also reports the phase-1-only choice (first protocol) for transparency."""
     from export_static import interp_levels
 
-    pv = interp_levels(q_val, levels_val, CALIB_GRID)  # (n, 13, grid)
+    curves = []
+    for label, q, levels, act in windows:
+        pv = interp_levels(q, levels, CALIB_GRID)  # (n, 13, grid)
+        curves.append((label, [vn1_score(pv[..., k], act)["score"] for k in range(len(CALIB_GRID))]))
+    mean_curve = np.mean([c for _, c in curves], axis=0)
     pt = interp_levels(q_test, levels_test, CALIB_GRID)
-    val = [vn1_score(pv[..., k], actual_val)["score"] for k in range(len(CALIB_GRID))]
-    test = [vn1_score(pt[..., k], actual_test)["score"] for k in range(len(CALIB_GRID))]
-    k = int(np.argmin(val))
-    u = float(CALIB_GRID[k])
-    vmed = vn1_score(pv[..., list(CALIB_GRID).index(0.5)], actual_val)
+    test = [vn1_score(pt[..., k], actual_test) for k in range(len(CALIB_GRID))]
+    k = int(np.argmin(mean_curve))
+    k1 = int(np.argmin(dict(curves)["val"])) if "val" in dict(curves) else None
+    i50 = list(CALIB_GRID).index(0.5)
+    r = lambda xs: [round(float(x), 5) for x in xs]  # noqa: E731
     return {"point": pt[..., k], "meta": {
-        "u": u, "test": vn1_score(pt[..., k], actual_test), "val": vn1_score(pv[..., k], actual_val), "val_median": vmed,
-        "curve": {"u": CALIB_GRID.tolist(), "val": [round(x, 5) for x in val], "test": [round(x, 5) for x in test]},
-        "test_best_u": float(CALIB_GRID[int(np.argmin(test))]), "test_best": float(min(test))}}
+        "u": float(CALIB_GRID[k]), "test": test[k],
+        "val": {"score": float(mean_curve[k])}, "val_median": {"score": float(mean_curve[i50])},
+        "windows": [{"label": lab, "curve": r(c), "u": float(CALIB_GRID[int(np.argmin(c))])} for lab, c in curves],
+        "p1": {"u": float(CALIB_GRID[k1]), "test": test[k1]} if k1 is not None else None,
+        "curve": {"u": CALIB_GRID.tolist(), "val": r(mean_curve), "test": r([x["score"] for x in test])},
+        "test_best_u": float(CALIB_GRID[int(np.argmin([x["score"] for x in test]))]),
+        "test_best": float(min(x["score"] for x in test))}}
 
 
 def build_vn1(args, out: Path) -> list[str]:
@@ -70,9 +84,12 @@ def build_vn1(args, out: Path) -> list[str]:
     bench_cfg = {c["name"]: c for c in json.loads((ROOT / "bench" / "configs.json").read_text())
                  if c.get("bench") == "vn1"}
     configs = load_parts(parts, n, "vn1", HORIZON) if parts.exists() else {}
-    # validation runs (history = phase 0, target = phase 1) used to choose the quantile taken as point forecast
-    val_cfgs = load_parts(parts, n, "vn1val", HORIZON) if parts.exists() else {}
-    val_actual = load_vn1(Path(args.data) / "vn1", "val").test if val_cfgs else None
+    # backtest runs (2023 quarters, the last one being phase 1) used to choose the quantile taken as point forecast
+    win = {}
+    for bench, phase in WINDOWS:
+        cf = load_parts(parts, n, bench, HORIZON) if parts.exists() else {}
+        if cf:
+            win[phase] = (cf, load_vn1(Path(args.data) / "vn1", phase))
     cfg_meta = []
     for name, c in configs.items():
         if not c["complete"]:
@@ -86,13 +103,24 @@ def build_vn1(args, out: Path) -> list[str]:
                  "median": vn1_score(med, actual), "mean": vn1_score(mean, actual),
                  "coverage80": float(((actual >= lo - 1e-9) & (actual <= hi + 1e-9)).mean())}
         extra = []
-        v = val_cfgs.get(name.replace("vn1_", "vn1val_", 1))
-        if v is not None and v["complete"]:
-            calib = calibrate(v["q"], v["levels"], val_actual, q, levels, actual)
+        windows = []
+        for bench, phase in WINDOWS:
+            if phase not in win:
+                continue
+            v = win[phase][0].get(name.replace("vn1_", bench + "_", 1))
+            if v is not None and v["complete"]:
+                d = win[phase][1]
+                label = f"{d.dates[-HORIZON].date()}|{d.dates[-1].date()}"
+                windows.append((phase if phase == "val" else label, v["q"], v["levels"], d.test))
+        if len(windows) == len(WINDOWS):  # calibrate only when every window is available
+            calib = calibrate(windows, q, levels, actual)
             entry["calib"] = calib["meta"]
             extra = [calib["point"]]
-            print(f"  {name}: quantile chosen on phase 1 = P{100 * calib['meta']['u']:.0f} · validation score "
-                  f"{calib['meta']['val']['score']:.4f} · test score {calib['meta']['test']['score']:.4f}")
+            m_ = calib["meta"]
+            print(f"  {name}: quantile chosen on the 4 windows = P{100 * m_['u']:.0f} (phase 1 alone: "
+                  f"P{100 * m_['p1']['u']:.0f}, test {m_['p1']['test']['score']:.4f}) · test score {m_['test']['score']:.4f}")
+        elif windows:
+            print(f"  {name}: {len(windows)}/{len(WINDOWS)} calibration windows, not calibrated")
         cfg_meta.append(entry)
         disp = interp_levels(q, levels, DISPLAY_Q)
         write_chunks(ddir / name, "q", np.concatenate([disp.transpose(0, 2, 1).reshape(n, -1), mean] + extra, axis=1))
@@ -127,8 +155,10 @@ def build_vn1(args, out: Path) -> list[str]:
 
     lines = ["## VN1", "", "| method | VN1 score | MAE% | Bias% |", "|---|---|---|---|"]
     rows = [(f"{c['name']} ({v})", c[v]) for c in cfg_meta for v in ("median", "mean")]
-    rows += [(f"{c['name']} (P{100 * c['calib']['u']:.0f}, chosen on phase 1)", c["calib"]["test"])
+    rows += [(f"{c['name']} (P{100 * c['calib']['u']:.0f}, chosen on 4 backtests)", c["calib"]["test"])
              for c in cfg_meta if "calib" in c]
+    rows += [(f"{c['name']} (P{100 * c['calib']['p1']['u']:.0f}, chosen on phase 1 only)", c["calib"]["p1"]["test"])
+             for c in cfg_meta if "calib" in c and c["calib"].get("p1")]
     rows += [(b["method"], b) for b in baselines]
     rows.sort(key=lambda r: r[1]["score"])
     lines += [f"| {k} | {r['score']:.4f} | {r['mae']:.4f} | {r['bias']:+.4f} |" for k, r in rows]

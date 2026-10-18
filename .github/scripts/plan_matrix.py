@@ -24,7 +24,6 @@ print("matrix=" + json.dumps({"include": include}))
 print("mode=" + mode)
 print("count=" + str(len(include)))
 print("target=" + ("live" if run.get("target") == "live" else "staging"))
-# earlier runs whose shards are reused (up to two): "reuse_run_id" and/or the list "reuse_run_ids"
+# earlier runs whose shards are reused: "reuse_run_id" and/or the list "reuse_run_ids" (earlier in the list wins)
 reuse = [str(r) for r in ([run["reuse_run_id"]] if run.get("reuse_run_id") else []) + run.get("reuse_run_ids", [])]
-print("reuse_run=" + (reuse[0] if reuse else ""))
-print("reuse_run2=" + (reuse[1] if len(reuse) > 1 else ""))
+print("reuse_runs=" + " ".join(reuse))

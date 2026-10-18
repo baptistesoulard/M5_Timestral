@@ -1,3 +1,26 @@
-{"mode": "full", "target": "staging",
- "only": ["vn1val_t5m_none", "vn1val_t28m_none", "vn1val_t28m_price", "vn1val_t209m_none", "vn1val_t209m_price"],
- "reuse_run_ids": ["39117349937", "39077648479"]}
+{
+ "mode": "full",
+ "target": "staging",
+ "only": [
+  "vn1bt131_t5m_none",
+  "vn1bt131_t28m_none",
+  "vn1bt131_t28m_price",
+  "vn1bt131_t209m_none",
+  "vn1bt131_t209m_price",
+  "vn1bt144_t5m_none",
+  "vn1bt144_t28m_none",
+  "vn1bt144_t28m_price",
+  "vn1bt144_t209m_none",
+  "vn1bt144_t209m_price",
+  "vn1bt157_t5m_none",
+  "vn1bt157_t28m_none",
+  "vn1bt157_t28m_price",
+  "vn1bt157_t209m_none",
+  "vn1bt157_t209m_price"
+ ],
+ "reuse_run_ids": [
+  "39130986423",
+  "39117349937",
+  "39077648479"
+ ]
+}

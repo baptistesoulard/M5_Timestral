@@ -66,6 +66,13 @@ def load_vn1(data_dir: str | Path, phase: str = "test") -> VN1Data:
     d = Path(data_dir)
     s0, s1, s2 = (_read(d / f"Phase {k} - Sales.csv") for k in (0, 1, 2))
     p0, p1 = (_read(d / f"Phase {k} - Price.csv") for k in (0, 1))
+    if phase.startswith("bt"):  # backtest: history = the first `cut` weeks of phases 0 + 1, target = the next 13
+        cut = int(phase[2:])
+        sales = pd.concat([s0, s1], axis=1)
+        price = pd.concat([p0, p1], axis=1).loc[sales.index, sales.columns]
+        return VN1Data(ids=sales.index.to_frame(index=False), train=sales.iloc[:, :cut].to_numpy(float),
+                       test=sales.iloc[:, cut : cut + HORIZON].to_numpy(float),
+                       price=price.iloc[:, :cut].to_numpy(float), dates=sales.columns[: cut + HORIZON])
     if phase == "val":
         sales, price, test = s0, p0.loc[s0.index, s0.columns], s1.loc[s0.index]
         return VN1Data(ids=sales.index.to_frame(index=False), train=sales.to_numpy(float),

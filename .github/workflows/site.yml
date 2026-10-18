@@ -33,8 +33,7 @@ jobs:
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       mode: ${{ steps.plan.outputs.mode }}
-      reuse_run: ${{ steps.plan.outputs.reuse_run }}
-      reuse_run2: ${{ steps.plan.outputs.reuse_run2 }}
+      reuse_runs: ${{ steps.plan.outputs.reuse_runs }}
       count: ${{ steps.plan.outputs.count }}
       target: ${{ steps.plan.outputs.target }}
     steps:
@@ -131,32 +130,17 @@ jobs:
           pattern: parts-*
           merge-multiple: true
           path: parts
-      - name: Shards from an earlier run (bench/run.json "reuse_run_id")
-        if: ${{ needs.plan.outputs.reuse_run != '' }}
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          pattern: parts-*
-          merge-multiple: true
-          path: parts-reused
-          run-id: ${{ needs.plan.outputs.reuse_run }}
-          github-token: ${{ github.token }}
-      - name: Shards from a second earlier run (bench/run.json "reuse_run_ids")
-        if: ${{ needs.plan.outputs.reuse_run2 != '' }}
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          pattern: parts-*
-          merge-multiple: true
-          path: parts-reused2
-          run-id: ${{ needs.plan.outputs.reuse_run2 }}
-          github-token: ${{ github.token }}
-      - name: Merge shards (this run wins, then the first reused run)
+      - name: Shards from earlier runs (bench/run.json "reuse_run_ids"; this run wins, then the earlier in the list)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNS: ${{ needs.plan.outputs.reuse_runs }}
         run: |
           mkdir -p parts
-          if [ -d parts-reused ]; then cp -n parts-reused/*.npz parts/ 2>/dev/null || true; fi
-          if [ -d parts-reused2 ]; then cp -n parts-reused2/*.npz parts/ 2>/dev/null || true; fi
-          ls -la parts || true
+          for r in $RUNS; do
+            gh run download "$r" -R "${{ github.repository }}" -p 'parts-*' -D "reused-$r" || echo "run $r: download failed"
+            find "reused-$r" -name '*.npz' -exec cp -n {} parts/ \; 2>/dev/null || true
+          done
+          ls parts | wc -l
       - name: Speed and sanity summary
         run: python .github/scripts/summarize_parts.py parts | tee summary.md
       - name: Build website

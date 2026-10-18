@@ -52,11 +52,15 @@ def forecast_vn1(args, fc, progress):
     from vn1bench.data import HORIZON as H_VN1
     from vn1bench.data import load_vn1, mask_leading_zeros, relative_price
 
-    data = load_vn1(Path(args.data) / "vn1", "val" if args.bench == "vn1val" else "test")
+    phase = "val" if args.bench == "vn1val" else args.bench[3:] if args.bench.startswith("vn1bt") else "test"
+    data = load_vn1(Path(args.data) / "vn1", phase)
     idx = np.arange(data.n)[args.shard :: args.nshards]
     if args.probe:
         idx = idx[:: max(1, len(idx) // args.probe)][: args.probe]
     ctx_all = mask_leading_zeros(data.train)
+    # products not launched yet at the forecast origin (backtests): no history, forecast 0
+    empty = np.isnan(ctx_all).all(axis=1)
+    idx_all, idx = idx, idx[~empty[idx]]
     price = relative_price(data) if args.covariates == "price" else None
     rows = 2 if price is not None else 1
     bs = max(4, min(args.batch_size, 512 // rows))
@@ -71,6 +75,10 @@ def forecast_vn1(args, fc, progress):
             levels = res.quantile_levels
         out[s : s + len(b)] = q
         progress(s + len(b), len(idx))
+    if len(idx) < len(idx_all):
+        full = np.zeros((len(idx_all),) + out.shape[1:], dtype=np.float32)
+        full[np.searchsorted(idx_all, idx)] = out
+        out, idx = full, idx_all
     return idx, out, levels
 
 
@@ -81,7 +89,7 @@ def cmd_forecast(args) -> None:
 
     if args.threads:
         torch.set_num_threads(args.threads)
-    if args.bench in ("vn1", "vn1val"):
+    if args.bench.startswith("vn1"):
         fc = load_forecaster(args.model)
         t0, last = time.time(), [0.0]
 
@@ -445,7 +453,7 @@ def main() -> None:
     f = sub.add_parser("forecast", help="forecast all series (or one shard) for one configuration")
     f.add_argument("--config", required=True)
     f.add_argument("--model", required=True)
-    f.add_argument("--bench", default="m5", choices=["m5", "vn1", "vn1val"])
+    f.add_argument("--bench", default="m5", choices=["m5", "vn1", "vn1val", "vn1bt131", "vn1bt144", "vn1bt157"])
     f.add_argument("--covariates", default="calendar", choices=["none", "calendar", "full", "rich", "price"])
     f.add_argument("--shard", type=int, default=0)
     f.add_argument("--nshards", type=int, default=1)
