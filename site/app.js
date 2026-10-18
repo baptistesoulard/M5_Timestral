@@ -1,29 +1,42 @@
-/* Timestral × M5 static demo. All forecasts are precomputed; this script only loads and displays them. */
+/* Timestral static demo on two benchmarks (M5 Walmart, daily; VN1, weekly).
+   All forecasts are precomputed; this script only loads and displays them. */
 "use strict";
 
 const S = {
-  lang: "en", meta: null, series: null, keyIndex: new Map(), scaleSq: null, learn: null,
-  chunks: new Map(), current: null, tab: "explore",
+  lang: "en", bench: "m5", benches: ["m5"], tab: "explore",
+  meta: null, series: null, keyIndex: new Map(), scaleSq: null, vn1: null, // data of the current benchmark
+  loaded: {}, learn: null, glossary: null, chunks: new Map(), current: null, checked: {},
 };
-const REF_COLOR = { snaive: "--c-snaive", tsb: "--c-tsb", ets: "--c-ets", winner: "--c-winner" };
+const TABS = ["explore", "benchmark", "learn", "glossary"];
+const REF_COLOR = {
+  snaive: "--c-snaive", tsb: "--c-tsb", ets: "--c-ets", arima: "--c-arima", winner: "--c-winner",
+  naive: "--c-naive", ma12: "--c-ma12", vn1_1st: "--c-winner",
+};
+const DEFAULT_REFS = { m5: ["snaive", "ets", "winner"], vn1: ["naive", "vn1_1st"] };
+const GLOSS = { // method → glossary entry
+  snaive: "snaive", naive: "naive", ma28: "ma", ma12: "ma", ses: "ses", sba: "croston", tsb: "tsb", adida: "adida",
+  imapa: "adida", ets: "ets", arima: "arima",
+};
 const LIEU = { 2: "state", 3: "store", 6: "state", 7: "state", 8: "store", 9: "store", 11: "state", 12: "store" };
 const PRODUIT = { 4: "cat", 5: "dept", 6: "cat", 7: "dept", 8: "cat", 9: "dept" };
 const $ = (id) => document.getElementById(id);
+const isVN1 = () => S.bench === "vn1";
 
 // ------------------------------------------------------------------ text & numbers
 function t(key, vars) {
-  let s = (I18N[S.lang] && I18N[S.lang][key]) ?? I18N.en[key] ?? key;
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(v);
+  const L = I18N[S.lang] || {}, E = I18N.en, bk = `${key}__${S.bench}`; // benchmark-specific text wins
+  let s = L[bk] ?? E[bk] ?? L[key] ?? E[key] ?? key;
+  if (vars && typeof s === "string") for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(v);
   return s;
 }
 const locale = () => (S.lang === "fr" ? "fr-FR" : "en-US");
 const fnum = (x, d = 3) => (x == null || !isFinite(x) ? "–" : x.toLocaleString(locale(), { minimumFractionDigits: d, maximumFractionDigits: d }));
 const fint = (x) => (x == null || !isFinite(x) ? "–" : Math.round(x).toLocaleString(locale()));
-function fpct(x, signed = false) {
+function fpct(x, signed = false, digits = 0) {
   if (x == null || !isFinite(x)) return "–";
-  const v = Math.round(x * 100);
-  const s = (signed && v > 0 ? "+" : "") + v.toLocaleString(locale()).replace("-", "−");
-  return S.lang === "fr" ? `${s} %` : `${s}%`;
+  const f = 10 ** digits, v = Math.round(x * 100 * f) / f;
+  const s = (signed && v > 0 ? "+" : "") + v.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits }).replace("-", "−");
+  return S.lang === "fr" ? `${s} %` : `${s}%`;
 }
 const narrow = () => window.matchMedia("(max-width: 600px)").matches;
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -35,10 +48,21 @@ function cfgLabel(c) {
 const refLabel = (k) => t("ref_" + k);
 function methodLabel(m) {
   const key = "m_" + m;
-  if (I18N.en[key]) return t(key);
+  if (I18N.en[key] || I18N.en[`${key}__${S.bench}`]) return t(key);
   const c = S.meta.configs.find((x) => x.name === m);
   return c ? cfgLabel(c) : m;
 }
+// method name linked to its glossary entry when there is one
+function glossLink(text, anchor) {
+  return anchor ? `<a href="#glossary" class="gl" data-g="${anchor}">${esc(text)}</a>` : esc(text);
+}
+function methodAnchor(m) {
+  if (GLOSS[m]) return GLOSS[m];
+  if (m === "winner" || m.startsWith("M5 #")) return "lightgbm";
+  if (m.startsWith("vn1_")) return null; // VN1 top 5: varied methods, no single glossary entry
+  return S.meta.configs.some((c) => c.name === m) ? "timestral" : null;
+}
+const help = (anchor) => ` <a href="#glossary" class="gl help" data-g="${anchor}" aria-label="${esc(t("what_is"))}">?</a>`;
 
 // ------------------------------------------------------------------ data
 async function getJSON(path) {
@@ -47,9 +71,9 @@ async function getJSON(path) {
   return r.json();
 }
 async function chunk(prefix, c, k) {
-  const key = `${prefix}/${c}`;
+  const key = `${S.bench}/${prefix}/${c}`;
   if (!S.chunks.has(key)) {
-    S.chunks.set(key, fetch(`data/${prefix}_${c}.bin`).then(async (r) => {
+    S.chunks.set(key, fetch(`data/${S.bench}/${prefix}_${c}.bin`).then(async (r) => {
       if (!r.ok) throw new Error(`${prefix}_${c}: ${r.status}`);
       const buf = await r.arrayBuffer();
       const n = buf.byteLength / (4 + 2 * k);
@@ -93,26 +117,31 @@ const sum = (a) => a.reduce((x, y) => x + y, 0);
 function metrics(i, f, y) {
   let se = 0, ae = 0;
   for (let d = 0; d < y.length; d++) { se += (f[d] - y[d]) ** 2; ae += Math.abs(f[d] - y[d]); }
-  const tot = sum(y);
+  const tot = sum(y), bias = sum(f) - tot;
   return {
-    rmsse: Math.sqrt(se / y.length / Math.max(S.scaleSq[i], 1e-12)),
-    wape: tot > 0 ? ae / tot : NaN, bias: tot > 0 ? (sum(f) - tot) / tot : NaN, total: sum(f),
+    rmsse: S.scaleSq ? Math.sqrt(se / y.length / Math.max(S.scaleSq[i], 1e-12)) : NaN,
+    wape: tot > 0 ? ae / tot : NaN, bias: tot > 0 ? bias / tot : NaN, total: sum(f),
+    score: tot > 0 ? (ae + Math.abs(bias)) / tot : NaN, // official VN1 score on this series
   };
 }
+// the error used to rank methods on one series: RMSSE for M5, VN1 score for VN1
+const err = (m) => (isVN1() ? m.score : m.rmsse);
+const bestVN1 = (c) => (c.mean.score < c.median.score ? { v: "mean", ...c.mean } : { v: "median", ...c.median });
 
 // ------------------------------------------------------------------ dates
 function dayDate(offset) {
   const d = new Date(S.meta.start_date + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + offset);
+  d.setUTCDate(d.getUTCDate() + offset * (S.meta.freq === "W" ? 7 : 1));
   return d.toISOString().slice(0, 10);
 }
 
-// ------------------------------------------------------------------ series selection
+// ------------------------------------------------------------------ series selection (M5)
 function fillSelect(sel, values, labels, value) {
   sel.innerHTML = values.map((v, k) => `<option value="${esc(v)}">${esc(labels ? labels[k] : v)}</option>`).join("");
-  if (value != null && values.includes(value)) sel.value = value;
+  if (value != null && values.map(String).includes(String(value))) sel.value = String(value);
 }
 function updateSelectors(keep = {}) {
+  if (isVN1()) return updateVN1Selectors(keep);
   const lv = +$("sel-level").value, m = S.meta;
   const loc = LIEU[lv], prod = PRODUIT[lv], isItem = lv >= 10;
   $("f-loc").hidden = !loc; $("f-prod").hidden = !prod;
@@ -132,6 +161,7 @@ function updateSelectors(keep = {}) {
   }
 }
 function currentIndex() {
+  if (isVN1()) { const v = $("sel-product").value; return v === "" ? undefined : +v; }
   const lv = +$("sel-level").value, loc = $("sel-loc").value, prod = $("sel-prod").value, item = $("sel-item").value;
   let a1 = "X", a2 = "X";
   if (lv === 1) a1 = "Total";
@@ -144,6 +174,10 @@ function currentIndex() {
   return S.keyIndex.get(`${lv}|${a1}|${a2}`);
 }
 function selectIndex(i) {
+  if (isVN1()) {
+    const s = S.series;
+    return updateVN1Selectors({ client: s.client[i], warehouse: s.warehouse[i], product: i });
+  }
   const lv = S.series.level[i], a1 = S.series.a1[i], a2 = S.series.a2[i];
   $("sel-level").value = String(lv);
   const keep = {};
@@ -157,8 +191,39 @@ function selectIndex(i) {
   updateSelectors(keep);
 }
 function seriesName(i) {
+  if (isVN1()) {
+    const s = S.series;
+    return t("vn1_name", { c: s.client[i], w: s.warehouse[i], p: s.product[i] });
+  }
   const lv = S.series.level[i], parts = [S.series.a1[i], S.series.a2[i]].filter((p) => p !== "X" && p !== "Total");
   return parts.length ? `${t("lv_names")[lv - 1]} · ${parts.join(" · ")}` : t("total_series");
+}
+
+// ------------------------------------------------------------------ series selection (VN1: client → warehouse → product)
+function indexVN1(series) {
+  // client → warehouse → [series index], every list sorted by sales over the last 52 weeks
+  const tree = new Map(), vol = series.vol;
+  series.client.forEach((c, i) => {
+    if (!tree.has(c)) tree.set(c, { vol: 0, wh: new Map() });
+    const C = tree.get(c), w = series.warehouse[i];
+    C.vol += vol[i];
+    if (!C.wh.has(w)) C.wh.set(w, { vol: 0, items: [] });
+    const W = C.wh.get(w);
+    W.vol += vol[i]; W.items.push(i);
+  });
+  for (const C of tree.values()) for (const W of C.wh.values()) W.items.sort((a, b) => vol[b] - vol[a]);
+  return tree;
+}
+function updateVN1Selectors(keep = {}) {
+  const tree = S.vn1, s = S.series;
+  const clients = [...tree.keys()].sort((a, b) => tree.get(b).vol - tree.get(a).vol);
+  const unit = t("per_year_units");
+  fillSelect($("sel-client"), clients, clients.map((c) => t("client_opt", { c, n: tree.get(c).wh.size })), keep.client ?? $("sel-client").value);
+  const C = tree.get(+$("sel-client").value);
+  const whs = [...C.wh.keys()].sort((a, b) => C.wh.get(b).vol - C.wh.get(a).vol);
+  fillSelect($("sel-wh"), whs, whs.map((w) => t("wh_opt", { w, n: C.wh.get(w).items.length })), keep.warehouse ?? $("sel-wh").value);
+  const items = C.wh.get(+$("sel-wh").value).items;
+  fillSelect($("sel-product"), items, items.map((i) => `${t("product")} ${s.product[i]} · ${fint(s.vol[i])} ${unit}`), keep.product ?? $("sel-product").value);
 }
 
 // ------------------------------------------------------------------ explore rendering
@@ -186,61 +251,94 @@ function plotConfig() {
       shortDays: ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."],
       months: ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
       shortMonths: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
-      date: "%d/%m/%Y", decimal: ",", thousands: "\u202f", grouping: [3], currency: ["", " €"] } });
+      date: "%d/%m/%Y", decimal: ",", thousands: " ", grouping: [3], currency: ["", " €"] } });
     plotLocaleReady = true;
   }
   return { ...plotConfigBase, locale: S.lang === "fr" ? "fr" : "en" };
 }
 // date axis: weekday + date on daily charts (store teams think in weekdays), week start on weekly charts
 function dateAxis() {
-  const fr = S.lang === "fr", weekly = S.meta && S.meta.freq === "W";
-  if (weekly) return { ...plotLayout().xaxis, tickformat: fr ? "%d/%m/%y" : "%b %d '%y", hoverformat: fr ? "semaine du %d/%m/%Y" : "week of %b %d, %Y" };
+  const fr = S.lang === "fr";
+  if (S.meta.freq === "W") return { ...plotLayout().xaxis, tickformat: fr ? "%d/%m/%y" : "%b %d '%y", hoverformat: fr ? "semaine du %d/%m/%Y" : "week of %b %d, %Y" };
   return { ...plotLayout().xaxis, tickformat: fr ? "%a %d/%m" : "%a %b %d", hoverformat: fr ? "%A %d/%m/%Y" : "%A, %b %d %Y" };
 }
 
 async function renderExplore() {
   const i = currentIndex();
   if (i == null || !S.meta.configs.length) return;
-  const cfg = $("sel-config").value, c = S.meta.configs.find((x) => x.name === cfg);
+  const bench = S.bench, cfg = $("sel-config").value, c = S.meta.configs.find((x) => x.name === cfg);
+  if (!c) return;
   const [sd, fc] = await Promise.all([seriesData(i), forecastData(cfg, i)]);
-  if (i !== currentIndex() || cfg !== $("sel-config").value) return; // a newer selection is pending
+  if (bench !== S.bench || i !== currentIndex() || cfg !== $("sel-config").value) return; // a newer selection is pending
   S.current = { i, sd, fc, c };
-  const y = sd.actual, med = quantileAt(fc, 0.5);
+  const y = sd.actual, h = y.length, med = quantileAt(fc, 0.5);
   const rows = { median: metrics(i, med, y), mean: metrics(i, fc.mean, y) };
   for (const r of S.meta.refs) rows[r] = metrics(i, sd.ref[r], y);
-  const bestT = Math.min(rows.median.rmsse, rows.mean.rmsse);
-  const stat = S.meta.refs.filter((r) => r !== "winner");
-  const bestStat = stat.reduce((a, b) => (rows[b].rmsse < rows[a].rmsse ? b : a), stat[0]);
   const lo80 = quantileAt(fc, 0.1), hi80 = quantileAt(fc, 0.9);
   let in80 = 0;
-  for (let d = 0; d < y.length; d++) if (y[d] >= lo80[d] - 1e-9 && y[d] <= hi80[d] + 1e-9) in80++;
+  for (let d = 0; d < h; d++) if (y[d] >= lo80[d] - 1e-9 && y[d] <= hi80[d] + 1e-9) in80++;
+  const e80 = Math.round(0.8 * h);
+  const bandCard = kpi(t("k_band"), t("k_band_v", { n: in80, h }), t("k_band_sub", { e: e80 }), Math.abs(in80 - e80) <= Math.max(2, h / 7) ? "good" : "bad");
+  const speedCard = kpi(t("k_speed"), `${fint(c.ms_per_series)} ms`, t("k_speed_sub", { model: c.model.replace("Timestral-", "") }));
+  const zs = sd.hist.subarray(Math.max(0, sd.hist.length - (isVN1() ? 52 : 364))).filter((v) => v < 0.5).length / Math.min(sd.hist.length, isVN1() ? 52 : 364);
+  const cards = [];
 
-  const cards = [kpi(t("k_rmsse"), fnum(bestT), t("k_lower"))];
-  if (bestStat) {
-    const g = 1 - bestT / rows[bestStat].rmsse;
-    cards.push(kpi(t("k_vs", { name: refLabel(bestStat) }), fpct(g, true), t("k_best_stat", { v: fnum(rows[bestStat].rmsse) }), g > 0 ? "good" : "bad"));
+  if (isVN1()) {
+    const v = bestVN1(c).v, T = rows[v];
+    cards.push(kpi(t("k_score"), fnum(T.score, 3), t("k_score_sub", { mae: fpct(T.wape), bias: fpct(T.bias, true), v: t("var_" + v) })));
+    for (const [ref, key] of [["naive", "k_vs_naive"], ["vn1_1st", "k_vs_winner"]]) {
+      if (!rows[ref]) continue;
+      const g = 1 - T.score / rows[ref].score;
+      cards.push(kpi(t(key), fpct(g, true), t("k_score_of", { v: fnum(rows[ref].score, 3) }), isFinite(g) ? (g > 0 ? "good" : "bad") : ""));
+    }
+    cards.push(bandCard, speedCard);
+    $("kpis").innerHTML = cards.join("");
+    const nv = rows.naive, verdict = nv && isFinite(T.score) && isFinite(nv.score) ? t(T.score < nv.score ? "beats" : "trails") : null;
+    $("reading").innerHTML = isFinite(T.score) ? t("reading", {
+      zs: fpct(zs), which: t("w_" + v), verdict: verdict ?? "–", a: fnum(T.score, 3), b: nv ? fnum(nv.score, 3) : "–",
+      n: in80, h, bias: fpct(T.bias, true),
+    }) : t("reading_nosales");
+  } else {
+    const bestT = Math.min(rows.median.rmsse, rows.mean.rmsse);
+    const stat = S.meta.refs.filter((r) => r !== "winner");
+    const bestStat = stat.reduce((a, b) => (rows[b].rmsse < rows[a].rmsse ? b : a), stat[0]);
+    cards.push(kpi(t("k_rmsse") + help("rmsse"), fnum(bestT), t("k_lower")));
+    if (bestStat) {
+      const g = 1 - bestT / rows[bestStat].rmsse;
+      cards.push(kpi(t("k_vs", { name: refLabel(bestStat) }), fpct(g, true), t("k_best_stat", { v: fnum(rows[bestStat].rmsse) }), g > 0 ? "good" : "bad"));
+    }
+    if (rows.winner) {
+      const g = 1 - bestT / rows.winner.rmsse;
+      cards.push(kpi(t("k_vs_winner"), fpct(g, true), `RMSSE ${fnum(rows.winner.rmsse)}`, g > 0 ? "good" : "bad"));
+    }
+    cards.push(bandCard);
+    cards.push(kpi(t("k_bias") + help("bias"), fpct(rows.median.bias, true), t("k_bias_sub")));
+    cards.push(speedCard);
+    $("kpis").innerHTML = cards.join("");
+    const meanWins = rows.mean.rmsse < rows.median.rmsse;
+    $("reading").innerHTML = t("reading", {
+      zs: fpct(zs), verdict: t(bestStat && bestT < rows[bestStat].rmsse ? "beats" : "trails"), n: in80, h,
+      which: t(meanWins ? "w_mean" : "w_median"), extra: zs > 0.4 && meanWins ? t("reading_extra") : ".",
+    });
   }
-  if (rows.winner) {
-    const g = 1 - bestT / rows.winner.rmsse;
-    cards.push(kpi(t("k_vs_winner"), fpct(g, true), `RMSSE ${fnum(rows.winner.rmsse)}`, g > 0 ? "good" : "bad"));
-  }
-  cards.push(kpi(t("k_band"), t("k_band_v", { n: in80 }), t("k_band_sub"), in80 >= 18 && in80 <= 26 ? "good" : "bad"));
-  cards.push(kpi(t("k_bias"), fpct(rows.median.bias, true), t("k_bias_sub")));
-  cards.push(kpi(t("k_speed"), `${fint(c.ms_per_series)} ms`, t("k_speed_sub", { model: c.model.replace("Timestral-", "") })));
-  $("kpis").innerHTML = cards.join("");
 
-  const zs = sd.hist.filter((v) => v < 0.5).length / sd.hist.length;
-  const meanWins = rows.mean.rmsse < rows.median.rmsse;
-  $("reading").innerHTML = t("reading", {
-    zs: fpct(zs), verdict: t(bestStat && bestT < rows[bestStat].rmsse ? "beats" : "trails"), n: in80,
-    which: t(meanWins ? "w_mean" : "w_median"), extra: zs > 0.4 && meanWins ? t("reading_extra") : ".",
-  });
-
+  // error table
   const names = { median: t("median"), mean: t("mean") };
   for (const r of S.meta.refs) names[r] = refLabel(r);
-  let html = `<thead><tr><th>${t("col_method")}</th><th class="num">RMSSE</th><th class="num">WAPE</th><th class="num">${t("col_bias")}</th><th class="num">${t("col_total")}</th></tr></thead><tbody>`;
-  for (const [k, v] of Object.entries(rows)) {
-    html += `<tr class="${k === "median" || k === "mean" ? "hl" : ""}"><td>${esc(names[k])}</td><td class="num">${fnum(v.rmsse)}</td><td class="num">${fpct(v.wape)}</td><td class="num">${fpct(v.bias, true)}</td><td class="num">${fint(v.total)}</td></tr>`;
+  const order = Object.keys(rows);
+  let html;
+  if (isVN1()) {
+    html = `<thead><tr><th>${t("col_method")}</th><th class="num">${t("col_score")}</th><th class="num">MAE%</th><th class="num">${t("col_bias")}</th><th class="num">${t("col_total")}</th></tr></thead><tbody>`;
+    for (const k of order) {
+      const v = rows[k];
+      html += `<tr class="${k === "median" || k === "mean" ? "hl" : ""}"><td>${glossLink(names[k], k === "median" || k === "mean" ? "median-mean" : methodAnchor(k))}</td><td class="num">${fnum(v.score)}</td><td class="num">${fpct(v.wape)}</td><td class="num">${fpct(v.bias, true)}</td><td class="num">${fint(v.total)}</td></tr>`;
+    }
+  } else {
+    html = `<thead><tr><th>${t("col_method")}</th><th class="num">RMSSE</th><th class="num">WAPE</th><th class="num">${t("col_bias")}</th><th class="num">${t("col_total")}</th></tr></thead><tbody>`;
+    for (const k of order) {
+      const v = rows[k];
+      html += `<tr class="${k === "median" || k === "mean" ? "hl" : ""}"><td>${glossLink(names[k], k === "median" || k === "mean" ? "median-mean" : methodAnchor(k))}</td><td class="num">${fnum(v.rmsse)}</td><td class="num">${fpct(v.wape)}</td><td class="num">${fpct(v.bias, true)}</td><td class="num">${fint(v.total)}</td></tr>`;
+    }
   }
   html += `<tr><td>${t("actual")}</td><td class="num">–</td><td class="num">–</td><td class="num">–</td><td class="num">${fint(sum(y))}</td></tr></tbody>`;
   $("err-table").innerHTML = html;
@@ -251,7 +349,7 @@ async function renderExplore() {
 function drawForecast() {
   if (!S.current || typeof Plotly === "undefined") return;
   const { i, sd, fc } = S.current, H = S.meta.hist_days, h = S.meta.horizon;
-  const days = +$("sel-days").value;
+  const days = Math.min(+$("sel-days").value, H);
   const hx = [], fx = [];
   for (let d = H - days; d < H; d++) hx.push(dayDate(d));
   for (let d = H; d < H + h; d++) fx.push(dayDate(d));
@@ -266,15 +364,17 @@ function drawForecast() {
     band(quantileAt(fc, 0.1), quantileAt(fc, 0.9), t("band80"), 0.28),
     { x: fx, y: Array.from(quantileAt(fc, 0.5)), name: t("median"), mode: "lines", line: { color: acc, width: 2.6 } },
   ];
+  if (isVN1()) traces.push({ x: fx, y: Array.from(fc.mean), name: t("mean"), mode: "lines", line: { color: acc, width: 1.4, dash: "dash" } });
   for (const box of document.querySelectorAll("#compare input:checked")) {
     const r = box.value;
-    traces.push({ x: fx, y: Array.from(sd.ref[r]), name: refLabel(r), mode: "lines", line: { color: css(REF_COLOR[r]), width: 1.6, dash: "dot" } });
+    if (!sd.ref[r]) continue;
+    traces.push({ x: fx, y: Array.from(sd.ref[r]), name: refLabel(r), mode: "lines", line: { color: css(REF_COLOR[r] || "--c-history"), width: 1.6, dash: "dot" } });
   }
   traces.push({ x: fx, y: Array.from(sd.actual), name: t("actual_test"), mode: "lines+markers", line: { color: css("--c-actual"), width: 2 }, marker: { size: 4 } });
   const muted = css("--muted");
   const shapes = [{ type: "line", x0: fx[0], x1: fx[0], yref: "paper", y0: 0, y1: 1, line: { color: muted, width: 1, dash: "dash" } }];
   const annotations = [{ x: fx[0], y: 1.02, yref: "paper", text: t("forecast_start"), showarrow: false, xanchor: "left", font: { size: 11, color: muted } }];
-  for (const [off, name] of narrow() ? [] : S.meta.events) {
+  for (const [off, name] of narrow() ? [] : S.meta.events || []) {
     if (off >= H) annotations.push({ x: dayDate(off), y: 0.97, yref: "paper", text: esc(name), showarrow: false, textangle: -90, yanchor: "top", xshift: -6, font: { size: 9.5, color: muted } });
   }
   Plotly.react("chart", traces, plotLayout({
@@ -286,8 +386,8 @@ function drawForecast() {
 
 function drawService() {
   if (!S.current || typeof Plotly === "undefined") return;
-  const { sd, fc } = S.current, H = S.meta.hist_days, h = S.meta.horizon;
-  const target = +$("svc").value, u = target / 100, y = sd.actual;
+  const { fc } = S.current, H = S.meta.hist_days, h = S.meta.horizon, y = S.current.sd.actual;
+  const target = +$("svc").value, u = target / 100;
   $("svc-out").textContent = target;
   const lq = quantileAt(fc, u), med = quantileAt(fc, 0.5);
   let cov = 0, covM = 0, short = 0, surplus = 0;
@@ -298,7 +398,7 @@ function drawService() {
   }
   const tot = sum(y), fill = tot > 0 ? 1 - short / tot : NaN;
   $("svc-kpis").innerHTML = [
-    kpi(t("s_covered"), fpct(cov / h), t("s_covered_sub", { t: target, n: cov }), Math.abs(cov / h - u) <= 0.1 ? "good" : "bad"),
+    kpi(t("s_covered") + help("service"), fpct(cov / h), t("s_covered_sub", { t: target, n: cov, h }), Math.abs(cov / h - u) <= 0.1 ? "good" : "bad"),
     kpi(t("s_fill"), fpct(fill), t("s_fill_sub", { v: fint(short) })),
     kpi(t("s_sold"), fint(tot), t("s_sold_sub", { h, stock: fint(sum(lq)) })),
     kpi(t("s_surplus"), fint(surplus), t("s_surplus_sub", { p: tot > 0 ? fpct(surplus / tot) : "–" })),
@@ -321,12 +421,17 @@ function hexToRgb(hex) {
   return m ? m.map((x) => parseInt(x, 16)).join(",") : "232,89,12";
 }
 
-// ------------------------------------------------------------------ benchmark
+// ------------------------------------------------------------------ benchmark (M5)
 function bestVariant(c) {
   const m = c.wrmsse["median|bottom-up"], e = c.wrmsse["mean|bottom-up"];
   return e < m ? { v: "mean", s: e } : { v: "median", s: m };
 }
+const typeTag = (type) => ({
+  stat: `<span class="tag">${t("type_stat")}</span>`, official: `<span class="tag">${t("type_official")}</span>`,
+  comp: `<span class="tag">${t("type_comp")}</span>`, tsfm: `<span class="tag tsfm">${t("type_tsfm")}</span>`,
+}[type]);
 function renderBenchmark() {
+  if (isVN1()) return renderBenchmarkVN1();
   const m = S.meta, cfgs = m.configs;
   const base = Object.fromEntries(m.baselines.filter((b) => b.metric === "wrmsse").map((b) => [b.method, b.score]));
   const winner = Object.entries(base).find(([k]) => k.startsWith("M5 #1 "));
@@ -334,11 +439,12 @@ function renderBenchmark() {
     const best = cfgs.reduce((a, b) => (bestVariant(b).s < bestVariant(a).s ? b : a));
     const bs = bestVariant(best).s;
     const rel = (ref) => (ref ? 1 - bs / ref : NaN);
+    const vsCard = (key, ref) => kpi(t(key), fpct(rel(ref), true), `WRMSSE ${fnum(ref, 4)}`, rel(ref) > 0 ? "good" : "bad");
     $("bench-kpis").innerHTML = [
-      kpi(t("b_best"), fnum(bs, 4), `${esc(cfgLabel(best))} · ${t("var_" + bestVariant(best).v)}`, "lead"),
-      kpi(t("b_vs_ets"), fpct(rel(base.ets), true), `WRMSSE ${fnum(base.ets, 4)}`, rel(base.ets) > 0 ? "good" : "bad"),
-      kpi(t("b_vs_snaive"), fpct(rel(base.snaive), true), `WRMSSE ${fnum(base.snaive, 4)}`, rel(base.snaive) > 0 ? "good" : "bad"),
-      kpi(t("b_vs_winner"), fpct(rel(winner && winner[1]), true), `WRMSSE ${fnum(winner && winner[1], 4)}`, rel(winner && winner[1]) > 0 ? "good" : "bad"),
+      kpi(t("b_best") + help("wrmsse"), fnum(bs, 4), `${esc(cfgLabel(best))} · ${t("var_" + bestVariant(best).v)}`, "lead"),
+      vsCard("b_vs_ets", base.ets),
+      base.arima ? vsCard("b_vs_arima", base.arima) : vsCard("b_vs_snaive", base.snaive),
+      vsCard("b_vs_winner", winner && winner[1]),
     ].join("") + uncertaintyKpi();
   } else {
     $("bench-kpis").innerHTML = "";
@@ -348,13 +454,12 @@ function renderBenchmark() {
   const rows = [];
   for (const [k, s] of Object.entries(base)) {
     const comp = k.startsWith("M5 #");
-    rows.push({ name: comp ? k.replace("M5 #", "M5 #") : methodLabel(k), type: comp ? "comp" : "stat", s, point: "" });
+    rows.push({ name: comp ? k : methodLabel(k), anchor: methodAnchor(k), type: comp ? "comp" : "stat", s, point: "" });
   }
-  for (const c of cfgs) { const b = bestVariant(c); rows.push({ name: cfgLabel(c), type: "tsfm", s: b.s, point: t("var_" + b.v) }); }
+  for (const c of cfgs) { const b = bestVariant(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: b.s, point: t("var_" + b.v) }); }
   rows.sort((a, b) => a.s - b.s);
-  const typeTag = { stat: `<span class="tag">${t("type_stat")}</span>`, comp: `<span class="tag">${t("type_comp")}</span>`, tsfm: `<span class="tag tsfm">${t("type_tsfm")}</span>` };
   $("lb-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th>${t("lb_point")}</th><th class="num">WRMSSE</th></tr></thead><tbody>` +
-    rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${esc(r.name)}</td><td>${typeTag[r.type]}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.s, 4)}</td></tr>`).join("") + "</tbody>";
+    rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.s, 4)}</td></tr>`).join("") + "</tbody>";
 
   // per-level chart
   if (typeof Plotly !== "undefined") {
@@ -374,9 +479,7 @@ function renderBenchmark() {
       const best = cfgs.reduce((a, b) => (bestVariant(b).s < bestVariant(a).s ? b : a));
       series.push({ name: cfgLabel(best), y: lvl(best.name, bestVariant(best).v, "bottom-up"), color: css("--accent"), width: 3 });
     }
-    series.push({ name: methodLabel("ets"), y: lvl("ets", "", "bottom-up"), color: css("--c-ets") });
-    series.push({ name: methodLabel("snaive"), y: lvl("snaive", "", "bottom-up"), color: css("--c-snaive") });
-    series.push({ name: methodLabel("tsb"), y: lvl("tsb", "", "bottom-up"), color: css("--c-tsb") });
+    for (const k of ["ets", "arima", "snaive", "tsb"]) if (k in base) series.push({ name: methodLabel(k), y: lvl(k, "", "bottom-up"), color: css(REF_COLOR[k]) });
     if (winner) series.push({ name: refLabel("winner"), y: lvl(winner[0], "", "bottom-up"), color: css("--c-winner") });
     Plotly.react("lv-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8 }, marker: { size: 6 } })),
       plotLayout({
@@ -405,9 +508,8 @@ function renderBenchmark() {
       }).join("") + "</tbody>";
   }
   $("ab-note").innerHTML = t("ab_note", { emp: emp ? fnum(emp.score, 4) : "–" }) + "<br>" + t("ab_note_median") + "<br>" +
-    ["none", "calendar", "full", "rich"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? "\u00a0:" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
+    ["none", "calendar", "full", "rich"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
 }
-
 
 function bestWspl() {
   const cfgs = S.meta.configs;
@@ -417,18 +519,17 @@ function uncertaintyKpi() {
   const best = bestWspl(), pub = (S.meta.uncertainty_published || []).find((p) => p.key === "unc_winner");
   if (!best || !pub) return "";
   const g = 1 - best.wspl / pub.wspl;
-  return kpi(t("b_unc"), fpct(g, true), t("b_unc_sub", { cfg: esc(cfgLabel(best)), v: fnum(best.wspl, 3), w: fnum(pub.wspl, 3) }), g >= -0.005 ? "good" : "bad");
+  return kpi(t("b_unc") + help("wspl"), fpct(g, true), t("b_unc_sub", { cfg: esc(cfgLabel(best)), v: fnum(best.wspl, 3), w: fnum(pub.wspl, 3) }), g >= -0.005 ? "good" : "bad");
 }
 function renderUncertainty() {
   const m = S.meta, rows = [];
-  for (const c of m.configs) rows.push({ name: cfgLabel(c), type: "tsfm", s: c.wspl, levels: null, cfg: c.name });
-  for (const p of m.uncertainty_published || []) rows.push({ name: t(p.key), type: p.key === "unc_winner" ? "comp" : "stat", s: p.wspl, levels: p.levels });
+  for (const c of m.configs) rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: c.wspl, levels: null, cfg: c.name });
+  for (const p of m.uncertainty_published || []) rows.push({ name: t(p.key), anchor: p.key === "unc_winner" ? "lightgbm" : "arima", type: p.key === "unc_winner" ? "comp" : "stat", s: p.wspl, levels: p.levels });
   const emp = m.baselines.find((b) => b.metric === "wspl");
-  if (emp) rows.push({ name: t("unc_emp"), type: "stat", s: emp.score });
+  if (emp) rows.push({ name: t("unc_emp"), anchor: "empirical", type: "stat", s: emp.score });
   rows.sort((a, b) => a.s - b.s);
-  const tag = { stat: `<span class="tag">${t("type_stat")}</span>`, comp: `<span class="tag">${t("type_comp")}</span>`, tsfm: `<span class="tag tsfm">${t("type_tsfm")}</span>` };
   $("unc-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th class="num">WSPL</th></tr></thead><tbody>` +
-    rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${esc(r.name)}</td><td>${tag[r.type]}</td><td class="num">${fnum(r.s, 3)}</td></tr>`).join("") +
+    rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td class="num">${fnum(r.s, 3)}</td></tr>`).join("") +
     `</tbody><caption class="muted" style="caption-side:bottom;text-align:left;padding:8px 12px"><a href="${esc(m.uncertainty_source || "#")}">${t("unc_source")}</a></caption>`;
   if (typeof Plotly === "undefined") return;
   const small = narrow();
@@ -440,7 +541,7 @@ function renderUncertainty() {
   };
   const best = bestWspl(), series = [];
   if (best) series.push({ name: cfgLabel(best), y: lvl(best.name), color: css("--accent"), width: 3 });
-  for (const p of m.uncertainty_published || []) series.push({ name: t(p.key), y: p.levels, color: css(p.key === "unc_winner" ? "--c-winner" : "--c-snaive") });
+  for (const p of m.uncertainty_published || []) series.push({ name: t(p.key), y: p.levels, color: css(p.key === "unc_winner" ? "--c-winner" : "--c-arima") });
   if (emp) series.push({ name: t("unc_emp"), y: lvl(emp.method), color: css("--c-history") });
   Plotly.react("unc-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8 }, marker: { size: 6 } })),
     plotLayout({
@@ -452,25 +553,83 @@ function renderUncertainty() {
     }), plotConfig());
 }
 
-// ------------------------------------------------------------------ static texts, language, tabs
+// ------------------------------------------------------------------ benchmark (VN1)
+function renderBenchmarkVN1() {
+  const m = S.meta, cfgs = m.configs, base = Object.fromEntries(m.baselines.map((b) => [b.method, b]));
+  const comp = m.baselines.filter((b) => b.family === "competition").sort((a, b) => a.score - b.score);
+  const stats = m.baselines.filter((b) => b.family === "benchmark");
+  const bestStat = stats.reduce((a, b) => (b.score < a.score ? b : a), stats[0]);
+  if (cfgs.length) {
+    const best = cfgs.reduce((a, b) => (bestVN1(b).score < bestVN1(a).score ? b : a)), B = bestVN1(best);
+    const rel = (r) => (r ? 1 - B.score / r.score : NaN);
+    const vs = (key, r, sub) => kpi(t(key), fpct(rel(r), true), sub, rel(r) > 0 ? "good" : "bad");
+    const rank = comp.filter((c) => c.score < B.score).length + 1;
+    $("bench-kpis").innerHTML = [
+      kpi(t("b_best") + help("vn1-score"), fnum(B.score, 4), `${esc(cfgLabel(best))} · ${t("var_" + B.v)} · MAE ${fpct(B.mae, false, 1)} · ${t("col_bias")} ${fpct(B.bias, true, 1)}`, "lead"),
+      vs("k_vs_naive", base.naive, t("k_score_of", { v: fnum(base.naive && base.naive.score, 4) })),
+      bestStat ? vs("b_vs_beststat", bestStat, `${esc(methodLabel(bestStat.method))} · ${fnum(bestStat.score, 4)}`) : "",
+      vs("b_vs_winner", base.vn1_1st, t("k_score_of", { v: fnum(base.vn1_1st && base.vn1_1st.score, 4) })),
+      kpi(t("b_rank"), rank <= comp.length ? `#${rank}` : t("b_rank_out", { n: comp.length }), t("b_rank_sub")),
+    ].join("");
+  } else {
+    $("bench-kpis").innerHTML = "";
+  }
+
+  const rows = m.baselines.map((b) => ({
+    name: methodLabel(b.method), anchor: methodAnchor(b.method), point: "",
+    type: b.family === "competition" ? "comp" : b.family === "official" ? "official" : "stat", ...b,
+  }));
+  for (const c of cfgs) { const b = bestVN1(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", point: t("var_" + b.v), ...b }); }
+  rows.sort((a, b) => a.score - b.score);
+  $("lb-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th>${t("lb_point")}</th><th class="num">${t("col_score")}</th><th class="num">MAE%</th><th class="num">${t("col_bias")}</th></tr></thead><tbody>` +
+    rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.score, 4)}</td><td class="num">${fpct(r.mae, false, 1)}</td><td class="num">${fpct(r.bias, true, 1)}</td></tr>`).join("") + "</tbody>";
+
+  if (!cfgs.length) { $("ab-table").innerHTML = `<tbody><tr><td>${t("ab_empty")}</td></tr></tbody>`; }
+  else {
+    const noneOf = (model) => cfgs.find((c) => c.covariates === "none" && c.model === model);
+    $("ab-table").innerHTML = `<thead><tr><th>${t("ab_cfg")}</th><th>${t("ab_cov")}</th><th class="num">${t("ab_med")}</th><th class="num">${t("ab_mean")}</th><th class="num">${t("ab_delta")}</th><th class="num">${t("col_bias")}</th><th class="num">${t("ab_cov80")}</th><th class="num">${t("ab_speed")}</th></tr></thead><tbody>` +
+      cfgs.map((c) => {
+        const ref = noneOf(c.model), b = bestVN1(c), d = ref && c !== ref ? 1 - b.score / bestVN1(ref).score : null;
+        const delta = d == null ? "–" : `<span class="${d > 0 ? "delta-good" : "delta-bad"}">${fpct(d, true, 1)}</span>`;
+        return `<tr><td>${esc(c.model.replace("Timestral-", "Timestral "))}</td><td title="${esc(t("cov_desc_" + c.covariates))}">${esc(t("cov_" + c.covariates))}</td><td class="num">${fnum(c.median.score, 4)}</td><td class="num">${fnum(c.mean.score, 4)}</td><td class="num">${delta}</td><td class="num">${fpct(b.bias, true, 1)}</td><td class="num">${fpct(c.coverage80)}</td><td class="num">${fint(c.ms_per_series)}</td></tr>`;
+      }).join("") + "</tbody>";
+  }
+  $("ab-note").innerHTML = t("ab_note") + "<br>" + ["none", "price"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
+}
+
+// ------------------------------------------------------------------ static texts, language, tabs, benchmark switch
 function applyTexts() {
   document.documentElement.lang = S.lang;
+  document.body.dataset.bench = S.bench;
   for (const el of document.querySelectorAll("[data-t]")) el.textContent = t(el.dataset.t);
   for (const el of document.querySelectorAll("[data-th]")) el.innerHTML = t(el.dataset.th);
+  for (const el of document.querySelectorAll("[data-help]")) {
+    el.querySelector(".gl.help")?.remove();
+    const g = el.dataset.help, k = "gl_" + g;
+    el.insertAdjacentHTML("beforeend", help(I18N.en[k] ? t(k) : g));
+  }
+  document.title = t("title");
   for (const b of document.querySelectorAll(".lang button")) b.setAttribute("aria-pressed", String(b.dataset.lang === S.lang));
+  for (const b of document.querySelectorAll(".bench-switch button")) {
+    b.setAttribute("aria-pressed", String(b.dataset.bench === S.bench));
+    b.hidden = !S.benches.includes(b.dataset.bench);
+  }
+  document.querySelector(".bench-switch").hidden = S.benches.length < 2;
+  $("glossary-body").innerHTML = S.glossary ? S.glossary[S.lang] : "";
   if (!S.meta) return;
   $("foot-text").textContent = t("footer", { date: new Date(S.meta.generated + "T00:00:00Z").toLocaleDateString(locale(), { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" }) });
-  const lvSel = $("sel-level"), lv = lvSel.value || "12";
-  fillSelect(lvSel, Array.from({ length: 12 }, (_, k) => String(k + 1)), t("lv_names").map((n, k) => `${k + 1}. ${n}`), lv);
-  const cfgSel = $("sel-config"), cv = cfgSel.value || S.meta.default_config;
+  if (!isVN1()) {
+    const lvSel = $("sel-level"), lv = lvSel.value || "12";
+    fillSelect(lvSel, Array.from({ length: 12 }, (_, k) => String(k + 1)), t("lv_names").map((n, k) => `${k + 1}. ${n}`), lv);
+  }
+  const cfgSel = $("sel-config"), cv = S.meta.configs.some((c) => c.name === cfgSel.value) ? cfgSel.value : S.meta.default_config;
   fillSelect(cfgSel, S.meta.configs.map((c) => c.name), S.meta.configs.map(cfgLabel), cv);
   updateCfgHint();
   $("examples").innerHTML = S.meta.examples.map((e) => `<button type="button" data-i="${e.i}">${esc(t(e.key))}</button>`).join("");
-  const checked = new Set([...document.querySelectorAll("#compare input:checked")].map((x) => x.value));
-  const defaults = checked.size || document.querySelector("#compare input") ? checked : new Set(["snaive", "ets", "winner"]);
-  $("compare").innerHTML = S.meta.refs.map((r) => `<label><input type="checkbox" value="${r}" ${defaults.has(r) ? "checked" : ""}><span class="swatch" style="border-color:var(${REF_COLOR[r]})"></span>${esc(refLabel(r))}</label>`).join("");
+  const checked = S.checked[S.bench] || new Set(DEFAULT_REFS[S.bench]);
+  $("compare").innerHTML = S.meta.refs.map((r) => `<label><input type="checkbox" value="${r}" ${checked.has(r) ? "checked" : ""}><span class="swatch" style="border-color:var(${REF_COLOR[r] || "--c-history"})"></span>${esc(refLabel(r))}</label>`).join("");
   updateSelectors();
-  $("learn-body").innerHTML = S.learn ? S.learn[S.lang] : "";
+  $("learn-body").innerHTML = S.learn ? (S.learn[S.lang][S.bench] ?? S.learn[S.lang]) : "";
 }
 function updateCfgHint() {
   const c = S.meta.configs.find((x) => x.name === $("sel-config").value);
@@ -482,16 +641,62 @@ function setLang(lang) {
   applyTexts();
   if (S.meta) { renderExplore(); renderBenchmark(); }
 }
+function writeHash() {
+  history.replaceState(null, "", "#" + (S.bench === "m5" || S.tab === "glossary" ? S.tab : `${S.bench}/${S.tab}`));
+}
 function setTab(tab, push = true) {
   S.tab = tab;
-  for (const id of ["explore", "benchmark", "learn"]) {
+  for (const id of TABS) {
     $(id).hidden = id !== tab;
     $("tab-" + id).setAttribute("aria-selected", String(id === tab));
   }
-  if (push) history.replaceState(null, "", "#" + tab);
+  if (push) writeHash();
   if (typeof Plotly !== "undefined") requestAnimationFrame(() => {
     for (const id of ["chart", "svc-chart", "lv-chart", "unc-chart"]) { const el = $(id); if (el && el.data && !el.closest("[hidden]")) Plotly.Plots.resize(el); }
   });
+}
+function showGlossary(anchor) {
+  setTab("glossary");
+  const el = anchor && $("g-" + anchor);
+  if (!el) { window.scrollTo({ top: 0 }); return; }
+  el.scrollIntoView({ block: "center" });
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 900);
+}
+
+async function loadBench(bench) {
+  if (!S.loaded[bench]) {
+    const files = [getJSON(`data/${bench}/meta.json`), getJSON(`data/${bench}/series.json`)];
+    if (bench === "m5") files.push(fetch("data/m5/scale_sq.bin").then((r) => { if (!r.ok) throw new Error("scale_sq"); return r.arrayBuffer(); }));
+    const [meta, series, sq] = await Promise.all(files);
+    const L = { meta, series, scaleSq: sq ? new Float32Array(sq) : null, keyIndex: new Map(), vn1: null };
+    if (bench === "m5") series.level.forEach((lv, i) => L.keyIndex.set(`${lv}|${series.a1[i]}|${series.a2[i]}`, i));
+    else L.vn1 = indexVN1(series);
+    S.loaded[bench] = L;
+  }
+  Object.assign(S, S.loaded[bench], { bench, current: null });
+}
+async function setBench(bench, first = false) {
+  if (!first && bench === S.bench) return;
+  if (!first) S.checked[S.bench] = new Set([...document.querySelectorAll("#compare input:checked")].map((x) => x.value));
+  $("status").hidden = false; $("status").classList.remove("error"); $("status").textContent = t("loading");
+  try { await loadBench(bench); } catch (err) {
+    $("status").textContent = t("load_error"); $("status").classList.add("error"); console.error(err); return;
+  }
+  $("status").hidden = true;
+  for (const id of ["kpis", "reading", "err-table", "svc-kpis"]) $(id).innerHTML = "";
+  for (const id of ["chart", "svc-chart"]) if (typeof Plotly !== "undefined" && $(id).data) Plotly.purge($(id));
+  // history slider: days on M5, weeks on VN1
+  const sl = $("sel-days"), H = S.meta.hist_days;
+  if (isVN1()) { sl.min = 13; sl.max = H; sl.step = 1; sl.value = narrow() ? 52 : 104; }
+  else { sl.min = 28; sl.max = 364; sl.step = 7; sl.value = narrow() ? 56 : 112; }
+  $("days-out").textContent = sl.value;
+  applyTexts();
+  const ex = S.meta.examples, start = isVN1() ? ex[0] : ex[2] || ex[0];
+  selectIndex(start ? start.i : 0);
+  renderBenchmark();
+  writeHash();
+  await renderExplore();
 }
 
 // ------------------------------------------------------------------ boot
@@ -499,35 +704,27 @@ async function boot() {
   let lang = (navigator.language || "en").toLowerCase().startsWith("fr") ? "fr" : "en";
   try { lang = localStorage.getItem("lang") || lang; } catch (e) { /* storage unavailable */ }
   S.lang = lang;
+  const [h1, h2] = location.hash.replace("#", "").split("/");
+  let bench = "m5", tab = h1;
+  if (h2 !== undefined) { bench = h1; tab = h2; }
   applyTexts();
-  const hash = location.hash.replace("#", "");
-  setTab(["explore", "benchmark", "learn"].includes(hash) ? hash : "explore", false);
+  setTab(TABS.includes(tab) ? tab : "explore", false);
   try {
-    const [meta, series, learn, sq] = await Promise.all([
-      getJSON("data/meta.json"), getJSON("data/series.json"), getJSON("data/learn.json"),
-      fetch("data/scale_sq.bin").then((r) => { if (!r.ok) throw new Error("scale_sq"); return r.arrayBuffer(); }),
+    const [index, learn, glossary] = await Promise.all([
+      getJSON("data/index.json").catch(() => ({ benches: ["m5"] })), getJSON("data/learn.json"), getJSON("data/glossary.json").catch(() => null),
     ]);
-    S.meta = meta; S.series = series; S.learn = learn; S.scaleSq = new Float32Array(sq);
-    series.level.forEach((lv, i) => S.keyIndex.set(`${lv}|${series.a1[i]}|${series.a2[i]}`, i));
+    S.benches = index.benches; S.learn = learn; S.glossary = glossary;
   } catch (err) {
-    $("status").textContent = t("load_error");
-    $("status").classList.add("error");
-    console.error(err);
-    return;
+    $("status").textContent = t("load_error"); $("status").classList.add("error"); console.error(err); return;
   }
-  $("status").hidden = true;
-  if (narrow()) { $("sel-days").value = "56"; $("days-out").textContent = "56"; }
-  applyTexts();
-  selectIndex(S.meta.examples[2] ? S.meta.examples[2].i : 0);
-  renderBenchmark();
-  await renderExplore();
+  await setBench(S.benches.includes(bench) ? bench : "m5", true);
+  if (S.tab === "glossary") writeHash();
 
   $("sel-level").addEventListener("change", () => { updateSelectors(); renderExplore(); });
-  for (const id of ["sel-loc", "sel-prod", "sel-item"]) $(id).addEventListener("change", renderExplore);
-  $("sel-dept").addEventListener("change", () => {
-    fillSelect($("sel-item"), S.meta.items_by_dept[$("sel-dept").value]);
-    renderExplore();
-  });
+  for (const id of ["sel-loc", "sel-prod", "sel-item", "sel-product"]) $(id).addEventListener("change", renderExplore);
+  $("sel-dept").addEventListener("change", () => { fillSelect($("sel-item"), S.meta.items_by_dept[$("sel-dept").value]); renderExplore(); });
+  $("sel-client").addEventListener("change", () => { updateVN1Selectors({ warehouse: null, product: null }); renderExplore(); });
+  $("sel-wh").addEventListener("change", () => { updateVN1Selectors({ product: null }); renderExplore(); });
   $("sel-config").addEventListener("change", () => { updateCfgHint(); renderExplore(); });
   $("compare").addEventListener("change", drawForecast);
   $("sel-days").addEventListener("input", () => { $("days-out").textContent = $("sel-days").value; drawForecast(); });
@@ -541,6 +738,11 @@ async function boot() {
 
 document.addEventListener("DOMContentLoaded", () => {
   for (const b of document.querySelectorAll(".lang button")) b.addEventListener("click", () => setLang(b.dataset.lang));
-  for (const id of ["explore", "benchmark", "learn"]) $("tab-" + id).addEventListener("click", () => setTab(id));
+  for (const b of document.querySelectorAll(".bench-switch button")) b.addEventListener("click", () => setBench(b.dataset.bench));
+  for (const id of TABS) $("tab-" + id).addEventListener("click", () => setTab(id));
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest("a.gl");
+    if (a) { e.preventDefault(); showGlossary(a.dataset.g); }
+  });
   boot();
 });

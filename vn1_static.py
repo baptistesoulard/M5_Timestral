@@ -89,7 +89,8 @@ def build_vn1(args, out: Path) -> list[str]:
     (ddir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     (ddir / "series.json").write_text(json.dumps(
         {"client": ids["Client"].astype(int).tolist(), "warehouse": ids["Warehouse"].astype(int).tolist(),
-         "product": ids["Product"].astype(int).tolist()}, separators=(",", ":")), encoding="utf-8")
+         "product": ids["Product"].astype(int).tolist(), "vol": np.rint(tot).astype(int).tolist()},
+        separators=(",", ":")), encoding="utf-8")
 
     lines = ["## VN1", "", "| method | VN1 score | MAE% | Bias% |", "|---|---|---|---|"]
     rows = [(f"{c['name']} ({v})", c[v]) for c in cfg_meta for v in ("median", "mean")]

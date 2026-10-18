@@ -265,7 +265,32 @@ def learn_html(lang: str, slices) -> str:
                     for n, t, d in PIPELINE[lang])
     pipe = f"<figure class='pipeline'><figcaption>{cap}</figcaption><ol>{steps}</ol></figure>"
     after = LEARN[f"{lang}_after_pipeline"]
-    return md(LEARN[lang]) + levels + md(LEARN[f"{lang}_after_levels"]) + pipe + md(after)
+    m5 = md(LEARN[lang]) + levels + md(LEARN[f"{lang}_after_levels"]) + pipe + md(after)
+    # VN1 page: VN1 presentation + the generic sections (foundation models, Timestral) + what is tested on VN1
+    from site_texts import VN1_LEARN
+
+    fm = "## Foundation models" if lang == "en" else "## Les modèles de fondation"
+    tests = "## What this demo tests" if lang == "en" else "## Ce que teste cette démo"
+    generic = md(fm + LEARN[f"{lang}_after_levels"].split(fm, 1)[1]) + pipe + md(after.split(tests, 1)[0])
+    vn1 = md(VN1_LEARN[lang]) + generic + md(VN1_LEARN[f"{lang}_tests"])
+    return {"m5": m5, "vn1": vn1}
+
+
+def glossary_html(lang: str) -> str:
+    import markdown
+
+    from site_texts import GLOSSARY, GLOSSARY_INTRO
+
+    k = 0 if lang == "en" else 1
+    out = [f"<p class='lede'>{html.escape(GLOSSARY_INTRO[lang])}</p>"]
+    for titles, entries in GLOSSARY:
+        out.append(f"<h2>{html.escape(titles[k])}</h2><dl class='glossary'>")
+        for anchor, t_en, t_fr, d_en, d_fr in entries:
+            term, d = (t_en, d_en) if lang == "en" else (t_fr, d_fr)
+            body = markdown.markdown(d)[3:-4]  # strip <p></p>
+            out.append(f"<div id='g-{anchor}'><dt>{html.escape(term)}</dt><dd>{body}</dd></div>")
+        out.append("</dl>")
+    return "".join(out)
 
 
 # ============================================================================ build
@@ -405,6 +430,8 @@ def cmd_build(args) -> None:
                                              encoding="utf-8")
     (out / "data" / "learn.json").write_text(json.dumps({lg: learn_html(lg, m5["slices"]) for lg in ("en", "fr")},
                                                         ensure_ascii=False), encoding="utf-8")
+    (out / "data" / "glossary.json").write_text(json.dumps({lg: glossary_html(lg) for lg in ("en", "fr")},
+                                                           ensure_ascii=False), encoding="utf-8")
     (out / ".nojekyll").write_text("")
     (out / "data" / "summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
     size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
