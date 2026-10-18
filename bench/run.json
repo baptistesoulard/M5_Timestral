@@ -1,1 +1,4 @@
-{"mode": "full", "only": ["__publish_only__"], "reuse_run_id": "39077648479"}
+{"mode": "full", "target": "staging",
+ "only": ["vn1_t5m_none", "vn1_t28m_none", "vn1_t28m_price", "vn1_t209m_none", "vn1_t209m_price",
+          "m5_arima", "vn1_stats", "vn1_arima"],
+ "reuse_run_id": "39077648479"}

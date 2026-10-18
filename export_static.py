@@ -47,6 +47,33 @@ UNCERTAINTY_SOURCE = "https://www.researchgate.net/publication/356943392_The_M5_
 
 
 # ============================================================================ forecast
+def forecast_vn1(args, fc, progress):
+    """VN1: weekly sales, 13-week horizon; covariate "price" = relative price as a past-only covariate."""
+    from vn1bench.data import HORIZON as H_VN1
+    from vn1bench.data import load_vn1, mask_leading_zeros, relative_price
+
+    data = load_vn1(Path(args.data) / "vn1")
+    idx = np.arange(data.n)[args.shard :: args.nshards]
+    if args.probe:
+        idx = idx[:: max(1, len(idx) // args.probe)][: args.probe]
+    ctx_all = mask_leading_zeros(data.train)
+    price = relative_price(data) if args.covariates == "price" else None
+    rows = 2 if price is not None else 1
+    bs = max(4, min(args.batch_size, 512 // rows))
+    out, levels = None, None
+    for s in range(0, len(idx), bs):
+        b = idx[s : s + bs]
+        kw = {"past_covariates": price[b][:, None, :]} if price is not None else {}
+        res = fc.forecast(ctx_all[b][:, None, :], prediction_length=H_VN1, **kw)
+        q = res.quantiles[:, 0].cpu().numpy()
+        if out is None:
+            out = np.empty((len(idx),) + q.shape[1:], dtype=np.float32)
+            levels = res.quantile_levels
+        out[s : s + len(b)] = q
+        progress(s + len(b), len(idx))
+    return idx, out, levels
+
+
 def cmd_forecast(args) -> None:
     import torch
 
@@ -54,6 +81,27 @@ def cmd_forecast(args) -> None:
 
     if args.threads:
         torch.set_num_threads(args.threads)
+    if args.bench == "vn1":
+        fc = load_forecaster(args.model)
+        t0, last = time.time(), [0.0]
+
+        def progress(done, total):
+            now = time.time()
+            if now - last[0] > 30 or done == total:
+                last[0] = now
+                print(f"  {done}/{total} series · {(now - t0) / done * 1000:.0f} ms/series", flush=True)
+
+        idx, q, levels = forecast_vn1(args, fc, progress)
+        seconds = time.time() - t0
+        meta = {"bench": "vn1", "config": args.config, "model": args.model, "covariates": args.covariates,
+                "shard": args.shard, "nshards": args.nshards, "probe": args.probe, "seconds": seconds,
+                "series": int(len(idx)), "ms_per_series": 1000 * seconds / len(idx),
+                "threads": torch.get_num_threads(), "cpu": platform.processor() or platform.machine()}
+        Path(args.out).mkdir(parents=True, exist_ok=True)
+        np.savez_compressed(Path(args.out) / f"vn1__{args.config}__{args.shard:02d}of{args.nshards:02d}.npz",
+                            idx=idx, q=q, levels=np.asarray(levels), meta=np.array(json.dumps(meta)))
+        print(json.dumps(meta), flush=True)
+        return
     data = load_m5(args.data)
     hist = data.aggregate(data.train)
     n = len(data.series)
@@ -86,7 +134,7 @@ def cmd_forecast(args) -> None:
     seconds = time.time() - t0
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    meta = {"config": args.config, "model": args.model, "covariates": args.covariates, "shard": args.shard,
+    meta = {"bench": "m5", "config": args.config, "model": args.model, "covariates": args.covariates, "shard": args.shard,
             "nshards": args.nshards, "probe": args.probe, "seconds": seconds, "series": int(len(idx)),
             "ms_per_series": 1000 * seconds / len(idx), "threads": torch.get_num_threads(),
             "cpu": platform.processor() or platform.machine(), "cpu_count": os.cpu_count()}
@@ -115,18 +163,20 @@ def write_chunks(folder: Path, prefix: str, values: np.ndarray) -> None:
             f.write(codes.astype("<u2").tobytes())
 
 
-def load_parts(parts_dir: Path, n_series: int) -> dict:
-    """Group shard files by configuration; keep complete configurations only."""
+def load_parts(parts_dir: Path, n_series: int, bench: str = "m5", horizon: int = HORIZON) -> dict:
+    """Group Timestral shard files of one benchmark by configuration."""
     groups: dict[str, list] = {}
     for p in sorted(parts_dir.rglob("*.npz")):
         with np.load(p) as z:
             meta = json.loads(str(z["meta"]))
+            if meta.get("kind", "timestral") != "timestral" or meta.get("bench", "m5") != bench:
+                continue
             groups.setdefault(meta["config"], []).append((z["idx"], z["q"], tuple(z["levels"]), meta))
     configs = {}
     for name, items in groups.items():
         covered = np.zeros(n_series, dtype=bool)
         levels = items[0][2]
-        q_all = np.full((n_series, HORIZON, len(levels)), np.nan, dtype=np.float32)
+        q_all = np.full((n_series, horizon, len(levels)), np.nan, dtype=np.float32)
         for idx, q, _, _ in items:
             q_all[idx] = q
             covered[idx] = True
@@ -139,6 +189,30 @@ def load_parts(parts_dir: Path, n_series: int) -> dict:
         print(f"  {name}: {covered.sum()}/{n_series} series, {len(metas)} shard(s), "
               f"{info['ms_per_series']:.0f} ms/series")
     return configs
+
+
+def load_baseline_parts(parts_dir: Path, bench: str, n_series: int) -> dict[str, np.ndarray]:
+    """Statistical baselines computed by bench_baselines.py: {method: (n_series, horizon)}, complete ones only."""
+    acc: dict[str, list] = {}
+    for p in sorted(Path(parts_dir).rglob("baseline__*.npz")):
+        with np.load(p) as z:
+            meta = json.loads(str(z["meta"]))
+            if meta.get("bench") != bench:
+                continue
+            for k in z.files:
+                if k not in ("idx", "meta"):
+                    acc.setdefault(k, []).append((z["idx"], z[k]))
+    out = {}
+    for k, items in acc.items():
+        h = items[0][1].shape[1]
+        arr = np.full((n_series, h), np.nan, dtype=np.float32)
+        for idx, v in items:
+            arr[idx] = v
+        if np.isnan(arr).any():
+            print(f"  baseline {bench}/{k} incomplete, skipped")
+            continue
+        out[k] = arr
+    return out
 
 
 def interp_levels(q: np.ndarray, src_levels, dst_levels) -> np.ndarray:
@@ -195,36 +269,36 @@ def learn_html(lang: str, slices) -> str:
 
 
 # ============================================================================ build
-def cmd_build(args) -> None:
-    t_start = time.time()
+def build_m5(args, out: Path) -> dict:
     data = load_m5(args.data)
     ev = M5Evaluator(data)
     hist = data.aggregate(data.train)
     n = len(data.series)
     slices = level_slices(data.series)
-    out = Path(args.out)
-    if out.exists():
-        shutil.rmtree(out)
-    shutil.copytree(ROOT / "site", out)
-    ddir = out / "data"
-    ddir.mkdir(exist_ok=True)
+    ddir = out / "data" / "m5"
+    ddir.mkdir(parents=True, exist_ok=True)
 
-    # reference forecasts (bottom-up from item × store) shipped with the repo
-    ref = {}
+    # reference forecasts (bottom-up from item × store): shipped with the repo, plus AutoARIMA from GitHub Actions
+    bottom_ref = {}
     with np.load(ROOT / "app_assets" / "reference_forecasts.npz") as z:
         for k in REF_KEYS:
             if k in z.files:
-                ref[k] = data.aggregate(z[k].astype(np.float32))
-    print(f"references: {list(ref)}")
+                bottom_ref[k] = z[k].astype(np.float32)
+    extra = load_baseline_parts(Path(args.parts), "m5", data.train.shape[0]) if Path(args.parts).exists() else {}
+    if "arima" in extra:
+        bottom_ref["arima"] = extra["arima"]
+    ref_keys = [k for k in ("snaive", "tsb", "ets", "arima", "winner") if k in bottom_ref]
+    ref = {k: data.aggregate(bottom_ref[k]) for k in ref_keys}
+    print(f"M5 references: {ref_keys}")
 
     # base chunks: history (last HIST_DAYS days), actuals (28), reference forecasts (4 × 28)
-    base = np.concatenate([hist[:, -HIST_DAYS:], ev.actual] + [ref[k] for k in REF_KEYS if k in ref], axis=1)
+    base = np.concatenate([hist[:, -HIST_DAYS:], ev.actual] + [ref[k] for k in ref_keys], axis=1)
     write_chunks(ddir / "base", "base", base)
     np.asarray(ev.scale_sq, dtype="<f4").tofile(ddir / "scale_sq.bin")
 
     # Timestral configurations
     bench_cfg = {c["name"]: c for c in json.loads((ROOT / "bench" / "configs.json").read_text())}
-    configs = load_parts(Path(args.parts), n) if Path(args.parts).exists() else {}
+    configs = load_parts(Path(args.parts), n, "m5") if Path(args.parts).exists() else {}
     scores, by_level, cfg_meta = [], [], []
     for name, c in configs.items():
         if not c["complete"]:
@@ -254,7 +328,8 @@ def cmd_build(args) -> None:
         print(f"  {name}: WRMSSE bottom-up median {entry['wrmsse']['median|bottom-up']:.4f} · "
               f"mean {entry['wrmsse']['mean|bottom-up']:.4f} · WSPL {entry['wspl']:.4f}")
 
-    order = {c["name"]: k for k, c in enumerate(json.loads((ROOT / "bench" / "configs.json").read_text()))}
+    order = {c["name"]: k for k, c in enumerate(json.loads((ROOT / "bench" / "configs.json").read_text()))
+             if c.get("bench", "m5") == "m5"}
     cfg_meta.sort(key=lambda c: order.get(c["name"], 99))
     best = min(cfg_meta, key=lambda c: min(c["wrmsse"]["median|bottom-up"], c["wrmsse"]["mean|bottom-up"]),
                default=None)
@@ -267,6 +342,13 @@ def cmd_build(args) -> None:
                          "mode": r.agrégation, "metric": r.métrique, "level": r.level, "score": float(r.score)})
     baselines = [{"method": r.méthode, "family": r.famille, "mode": r.agrégation, "metric": r.métrique,
                   "score": float(r.score)} for r in base_scores.itertuples()]
+    for k, v in extra.items():  # baselines computed in GitHub Actions (AutoARIMA)
+        t = ev.wrmsse(v)
+        baselines.append({"method": k, "family": "benchmark", "mode": "bottom-up", "metric": "wrmsse",
+                          "score": float(t.loc[t["level"] == "Total", "wrmsse"].iloc[0])})
+        by_level += [{"method": k, "variant": "", "mode": "bottom-up", "metric": "wrmsse", "level": r.level,
+                      "score": float(r.wrmsse)} for r in t.itertuples()]
+        print(f"  {k}: WRMSSE {baselines[-1]['score']:.4f}")
 
     ids = data.bottom_ids
     depts = sorted(ids["dept_id"].unique())
@@ -277,7 +359,7 @@ def cmd_build(args) -> None:
               if window.start <= d < window.stop and e]
     meta = {
         "generated": time.strftime("%Y-%m-%d"), "chunk": CHUNK, "hist_days": HIST_DAYS, "horizon": HORIZON,
-        "display_q": DISPLAY_Q, "refs": [k for k in REF_KEYS if k in ref],
+        "bench": "m5", "freq": "D", "display_q": DISPLAY_Q, "refs": ref_keys,
         "start_date": str(cal["date"].iloc[window.start]), "test_start": str(cal["date"].iloc[t_end]),
         "events": events, "configs": cfg_meta, "default_config": best["name"] if best else None,
         "baselines": baselines, "by_level": by_level,
@@ -293,18 +375,40 @@ def cmd_build(args) -> None:
     (ddir / "series.json").write_text(json.dumps(
         {"level": level_num, "a1": data.series["agg1"].tolist(), "a2": data.series["agg2"].tolist()},
         separators=(",", ":")), encoding="utf-8")
-    (ddir / "learn.json").write_text(json.dumps({lg: learn_html(lg, slices) for lg in ("en", "fr")},
-                                                ensure_ascii=False), encoding="utf-8")
-    (out / ".nojekyll").write_text("")
-
-    # short summary for the repository (results branch)
-    lines = ["| configuration | WRMSSE median (bottom-up) | WRMSSE mean (bottom-up) | WSPL | ms/series |",
+    lines = ["## M5", "", "| configuration | WRMSSE median (bottom-up) | WRMSSE mean (bottom-up) | WSPL | ms/series |",
              "|---|---|---|---|---|"]
     lines += [f"| {c['name']} | {c['wrmsse']['median|bottom-up']:.4f} | {c['wrmsse']['mean|bottom-up']:.4f} | "
               f"{c['wspl']:.4f} | {c['ms_per_series']:.0f} |" for c in cfg_meta]
-    (out / "data" / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    lines += [f"| {b['method']} | | {b['score']:.4f} | | |" for b in baselines
+              if b["method"] in extra and b["metric"] == "wrmsse"]
+    return {"slices": slices, "summary": lines}
+
+
+def cmd_build(args) -> None:
+    t_start = time.time()
+    out = Path(args.out)
+    if out.exists():
+        shutil.rmtree(out)
+    shutil.copytree(ROOT / "site", out)
+    (out / "data").mkdir(exist_ok=True)
+    benches, summary = [], []
+    m5 = build_m5(args, out)
+    benches.append("m5")
+    summary += m5["summary"]
+    vn1_dir = Path(args.data) / "vn1"
+    if (vn1_dir / "Phase 2 - Sales.csv").exists():
+        from vn1_static import build_vn1
+
+        summary += [""] + build_vn1(args, out)
+        benches.append("vn1")
+    (out / "data" / "index.json").write_text(json.dumps({"benches": benches, "generated": time.strftime("%Y-%m-%d")}),
+                                             encoding="utf-8")
+    (out / "data" / "learn.json").write_text(json.dumps({lg: learn_html(lg, m5["slices"]) for lg in ("en", "fr")},
+                                                        ensure_ascii=False), encoding="utf-8")
+    (out / ".nojekyll").write_text("")
+    (out / "data" / "summary.md").write_text("\n".join(summary) + "\n", encoding="utf-8")
     size = sum(p.stat().st_size for p in out.rglob("*") if p.is_file())
-    print("\n".join(lines))
+    print("\n".join(summary))
     print(f"site written to {out} · {size / 1e6:.0f} MB · {time.time() - t_start:.0f} s")
 
 
@@ -314,7 +418,8 @@ def main() -> None:
     f = sub.add_parser("forecast", help="forecast all series (or one shard) for one configuration")
     f.add_argument("--config", required=True)
     f.add_argument("--model", required=True)
-    f.add_argument("--covariates", default="calendar", choices=["none", "calendar", "full", "rich"])
+    f.add_argument("--bench", default="m5", choices=["m5", "vn1"])
+    f.add_argument("--covariates", default="calendar", choices=["none", "calendar", "full", "rich", "price"])
     f.add_argument("--shard", type=int, default=0)
     f.add_argument("--nshards", type=int, default=1)
     f.add_argument("--probe", type=int, default=0, help="forecast only N series spread over the levels")

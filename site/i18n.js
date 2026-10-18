@@ -25,7 +25,7 @@ window.I18N = {
     svc_body: "Each day's stock is set at the chosen quantile of the Timestral forecast. Red bars are days when demand exceeded that stock.",
     svc_target: "Target service level", actual_demand: "Actual demand", stock_at: "Stock set at the {t}% quantile", median_short: "Median", units: "Units / day",
     s_covered: "Days covered", s_covered_sub: "target {t}% · {n}/28 days", s_fill: "Fill rate (volume)", s_fill_sub: "{v} units not covered",
-    s_surplus: "Cumulative surplus", s_surplus_sub: "units above demand", s_median: "With the median only", s_median_sub: "days covered, for comparison",
+    s_sold: "Total sold", s_sold_sub: "units over {h} days · stock {stock}", s_surplus: "Cumulative surplus", s_surplus_sub: "units above demand · {p} of sales", s_median: "With the median only", s_median_sub: "days covered, for comparison",
     own_data: "To forecast your own series, run the open-source app locally (<code>python app.py</code>): your data stays on your machine.",
     // config labels
     cov_none: "sales only", cov_calendar: "+ calendar", cov_full: "+ calendar and price", cov_rich: "+ rich covariates",
@@ -80,7 +80,7 @@ window.I18N = {
     svc_body: "Le stock de chaque jour est fixé au quantile choisi de la prévision Timestral. Les barres rouges sont les jours où la demande a dépassé ce stock.",
     svc_target: "Niveau de service visé", actual_demand: "Demande réelle", stock_at: "Stock dimensionné au quantile {t} %", median_short: "Médiane", units: "Unités / jour",
     s_covered: "Jours couverts", s_covered_sub: "objectif {t} % · {n}/28 jours", s_fill: "Taux de service en volume", s_fill_sub: "{v} unités non couvertes",
-    s_surplus: "Surplus cumulé", s_surplus_sub: "unités au-delà de la demande", s_median: "Avec la médiane seule", s_median_sub: "jours couverts, pour comparaison",
+    s_sold: "Total vendu", s_sold_sub: "unités sur {h} jours · stock {stock}", s_surplus: "Surplus cumulé", s_surplus_sub: "unités au-delà de la demande · {p} des ventes", s_median: "Avec la médiane seule", s_median_sub: "jours couverts, pour comparaison",
     own_data: "Pour prévoir vos propres séries, lancez l'appli open source en local (<code>python app.py</code>) : vos données restent sur votre poste.",
     cov_none: "ventes seules", cov_calendar: "+ calendrier", cov_full: "+ calendrier et prix", cov_rich: "+ covariables enrichies",
     cov_desc_none: "Historique des ventes uniquement.",

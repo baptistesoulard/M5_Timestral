@@ -176,7 +176,27 @@ function plotLayout(extra = {}) {
     yaxis: { gridcolor: grid, zerolinecolor: grid, tickfont: { color: muted }, rangemode: "tozero" },
   }, extra);
 }
-const plotConfig = { displayModeBar: false, responsive: true };
+const plotConfigBase = { displayModeBar: false, responsive: true };
+let plotLocaleReady = false;
+function plotConfig() {
+  // French day and month names for the date axes (Plotly ships English only)
+  if (!plotLocaleReady && typeof Plotly !== "undefined") {
+    Plotly.register({ moduleType: "locale", name: "fr", dictionary: {}, format: {
+      days: ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+      shortDays: ["dim.", "lun.", "mar.", "mer.", "jeu.", "ven.", "sam."],
+      months: ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
+      shortMonths: ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
+      date: "%d/%m/%Y", decimal: ",", thousands: "\u202f", grouping: [3], currency: ["", " €"] } });
+    plotLocaleReady = true;
+  }
+  return { ...plotConfigBase, locale: S.lang === "fr" ? "fr" : "en" };
+}
+// date axis: weekday + date on daily charts (store teams think in weekdays), week start on weekly charts
+function dateAxis() {
+  const fr = S.lang === "fr", weekly = S.meta && S.meta.freq === "W";
+  if (weekly) return { ...plotLayout().xaxis, tickformat: fr ? "%d/%m/%y" : "%b %d '%y", hoverformat: fr ? "semaine du %d/%m/%Y" : "week of %b %d, %Y" };
+  return { ...plotLayout().xaxis, tickformat: fr ? "%a %d/%m" : "%a %b %d", hoverformat: fr ? "%A %d/%m/%Y" : "%A, %b %d %Y" };
+}
 
 async function renderExplore() {
   const i = currentIndex();
@@ -260,8 +280,8 @@ function drawForecast() {
   Plotly.react("chart", traces, plotLayout({
     title: { text: esc(seriesName(i)), font: { size: 15, family: css("--font-body") }, x: 0, xanchor: "left" },
     shapes, annotations, yaxis: { ...plotLayout().yaxis, title: { text: t("units_day"), font: { size: 12, color: muted } } },
-    xaxis: { ...plotLayout().xaxis, tickformat: S.lang === "fr" ? "%d/%m" : "%b %d" },
-  }), plotConfig);
+    xaxis: dateAxis(),
+  }), plotConfig());
 }
 
 function drawService() {
@@ -280,7 +300,8 @@ function drawService() {
   $("svc-kpis").innerHTML = [
     kpi(t("s_covered"), fpct(cov / h), t("s_covered_sub", { t: target, n: cov }), Math.abs(cov / h - u) <= 0.1 ? "good" : "bad"),
     kpi(t("s_fill"), fpct(fill), t("s_fill_sub", { v: fint(short) })),
-    kpi(t("s_surplus"), fint(surplus), t("s_surplus_sub")),
+    kpi(t("s_sold"), fint(tot), t("s_sold_sub", { h, stock: fint(sum(lq)) })),
+    kpi(t("s_surplus"), fint(surplus), t("s_surplus_sub", { p: tot > 0 ? fpct(surplus / tot) : "–" })),
     kpi(t("s_median"), fpct(covM / h), t("s_median_sub")),
   ].join("");
   const fx = [];
@@ -292,7 +313,7 @@ function drawService() {
     { x: fx, y: Array.from(med), name: t("median_short"), mode: "lines", line: { color: acc, width: 1.2, dash: "dot", shape: "hv" } },
   ], plotLayout({ margin: { l: 52, r: 14, t: 10, b: 40 }, bargap: 0.25,
     yaxis: { ...plotLayout().yaxis, title: { text: t("units"), font: { size: 12, color: css("--muted") } } },
-    xaxis: { ...plotLayout().xaxis, tickformat: S.lang === "fr" ? "%d/%m" : "%b %d" } }), plotConfig);
+    xaxis: dateAxis() }), plotConfig());
 }
 
 function hexToRgb(hex) {
@@ -365,7 +386,7 @@ function renderBenchmark() {
         yaxis: { ...plotLayout().yaxis, title: { text: "RMSSE", font: { size: 12, color: css("--muted") } } },
         legend: small ? { orientation: "h", yanchor: "top", y: -0.22, x: 0, font: { size: 11, color: css("--muted") } }
                       : { orientation: "v", x: 1.01, y: 1, font: { size: 11.5, color: css("--muted") } },
-      }), plotConfig);
+      }), plotConfig());
   }
 
   renderUncertainty();
@@ -428,7 +449,7 @@ function renderUncertainty() {
       yaxis: { ...plotLayout().yaxis, title: { text: "SPL", font: { size: 12, color: css("--muted") } } },
       legend: small ? { orientation: "h", yanchor: "top", y: -0.22, x: 0, font: { size: 11, color: css("--muted") } }
                     : { orientation: "v", x: 1.01, y: 1, font: { size: 11.5, color: css("--muted") } },
-    }), plotConfig);
+    }), plotConfig());
 }
 
 // ------------------------------------------------------------------ static texts, language, tabs

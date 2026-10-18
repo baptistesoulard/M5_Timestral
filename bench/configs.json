@@ -5,5 +5,15 @@
   {"name": "t28m_full",      "model": "Timestral-28M",  "covariates": "full",     "shards": 4,  "probe_ms": 348},
   {"name": "t28m_rich",      "model": "Timestral-28M",  "covariates": "rich",     "shards": 8,  "probe_ms": 1231},
   {"name": "t209m_none",     "model": "Timestral-209M", "covariates": "none",     "shards": 2,  "probe_ms": 250},
-  {"name": "t209m_calendar", "model": "Timestral-209M", "covariates": "calendar", "shards": 16, "probe_ms": 2625}
+  {"name": "t209m_calendar", "model": "Timestral-209M", "covariates": "calendar", "shards": 16, "probe_ms": 2625},
+
+  {"name": "vn1_t5m_none",    "bench": "vn1", "model": "Timestral-5M",   "covariates": "none",  "shards": 1, "probe_ms": 30},
+  {"name": "vn1_t28m_none",   "bench": "vn1", "model": "Timestral-28M",  "covariates": "none",  "shards": 1, "probe_ms": 40},
+  {"name": "vn1_t28m_price",  "bench": "vn1", "model": "Timestral-28M",  "covariates": "price", "shards": 2, "probe_ms": 120},
+  {"name": "vn1_t209m_none",  "bench": "vn1", "model": "Timestral-209M", "covariates": "none",  "shards": 2, "probe_ms": 250},
+  {"name": "vn1_t209m_price", "bench": "vn1", "model": "Timestral-209M", "covariates": "price", "shards": 4, "probe_ms": 700},
+
+  {"name": "m5_arima",  "kind": "baseline", "bench": "m5",  "method": "arima", "shards": 32, "probe_ms": 7500},
+  {"name": "vn1_stats", "kind": "baseline", "bench": "vn1", "method": "stats", "shards": 1,  "probe_ms": 300},
+  {"name": "vn1_arima", "kind": "baseline", "bench": "vn1", "method": "arima", "shards": 16, "probe_ms": 5300}
 ]

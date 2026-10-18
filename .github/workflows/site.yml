@@ -1,7 +1,7 @@
 name: Timestral forecasts and website
 
-# Runs Timestral on the 42,840 M5 series on free GitHub runners, scores the forecasts and publishes the
-# static website to the gh-pages branch. What runs is set in bench/run.json ("probe" = quick check on a
+# Runs Timestral (and the slow statistical baselines, e.g. AutoARIMA) on the M5 and VN1 benchmarks on free
+# GitHub runners, scores the forecasts and publishes the static website (gh-pages, or site-staging for review). What runs is set in bench/run.json ("probe" = quick check on a
 # few hundred series, "full" = everything) and bench/configs.json (model sizes, covariates, shards).
 on:
   push:
@@ -10,6 +10,9 @@ on:
       - "bench/**"
       - "export_static.py"
       - "m5bench/**"
+      - "vn1bench/**"
+      - "vn1_static.py"
+      - "bench_baselines.py"
       - "site/**"
       - "app_texts.py"
       - ".github/**"
@@ -31,7 +34,9 @@ jobs:
       matrix: ${{ steps.plan.outputs.matrix }}
       mode: ${{ steps.plan.outputs.mode }}
       reuse_run: ${{ steps.plan.outputs.reuse_run }}
+      reuse_run2: ${{ steps.plan.outputs.reuse_run2 }}
       count: ${{ steps.plan.outputs.count }}
+      target: ${{ steps.plan.outputs.target }}
     steps:
       - uses: actions/checkout@v4
       - id: plan
@@ -53,24 +58,45 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install (CPU-only PyTorch)
+        if: ${{ matrix.kind == 'timestral' }}
         run: |
           pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
           pip install --quiet -r requirements-site.txt
+      - name: Install (statistical baselines)
+        if: ${{ matrix.kind == 'baseline' }}
+        run: pip install --quiet numpy pandas scipy statsforecast
       - uses: actions/cache@v4
+        if: ${{ matrix.bench == 'm5' }}
         with:
           path: data
           key: m5-data-v1
       - uses: actions/cache@v4
+        if: ${{ matrix.bench == 'vn1' }}
+        with:
+          path: data/vn1
+          key: vn1-data-v1
+      - uses: actions/cache@v4
+        if: ${{ matrix.kind == 'timestral' }}
         with:
           path: ~/.cache/huggingface
           key: hf-${{ matrix.model }}-v1
       - name: M5 data
+        if: ${{ matrix.bench == 'm5' }}
         run: python download_data.py --data data --top 0
-      - name: Forecast
+      - name: VN1 data
+        if: ${{ matrix.bench == 'vn1' }}
+        run: python -c "from vn1bench.data import ensure_vn1; ensure_vn1('data/vn1')"
+      - name: Forecast (Timestral)
+        if: ${{ matrix.kind == 'timestral' }}
         run: >
-          python export_static.py forecast --config ${{ matrix.config }} --model ${{ matrix.model }}
-          --covariates ${{ matrix.covariates }} --shard ${{ matrix.shard }} --nshards ${{ matrix.nshards }}
-          --probe ${{ matrix.probe }} --batch-size ${{ matrix.batch }} --out parts
+          python export_static.py forecast --bench ${{ matrix.bench }} --config ${{ matrix.config }}
+          --model ${{ matrix.model }} --covariates ${{ matrix.covariates }} --shard ${{ matrix.shard }}
+          --nshards ${{ matrix.nshards }} --probe ${{ matrix.probe }} --batch-size ${{ matrix.batch }} --out parts
+      - name: Forecast (statistical baseline)
+        if: ${{ matrix.kind == 'baseline' }}
+        run: >
+          python bench_baselines.py --bench ${{ matrix.bench }} --method ${{ matrix.method }}
+          --shard ${{ matrix.shard }} --nshards ${{ matrix.nshards }} --data data --out parts
       - uses: actions/upload-artifact@v4
         with:
           name: parts-${{ matrix.config }}-${{ matrix.shard }}
@@ -93,6 +119,11 @@ jobs:
           path: data
           key: m5-data-v1
       - run: python download_data.py --data data --top 0
+      - uses: actions/cache@v4
+        with:
+          path: data/vn1
+          key: vn1-data-v1
+      - run: python -c "from vn1bench.data import ensure_vn1; ensure_vn1('data/vn1')"
       - name: Shards from this run
         uses: actions/download-artifact@v4
         continue-on-error: true
@@ -110,24 +141,37 @@ jobs:
           path: parts-reused
           run-id: ${{ needs.plan.outputs.reuse_run }}
           github-token: ${{ github.token }}
-      - name: Merge shards (this run wins)
+      - name: Shards from a second earlier run (bench/run.json "reuse_run_ids")
+        if: ${{ needs.plan.outputs.reuse_run2 != '' }}
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: parts-*
+          merge-multiple: true
+          path: parts-reused2
+          run-id: ${{ needs.plan.outputs.reuse_run2 }}
+          github-token: ${{ github.token }}
+      - name: Merge shards (this run wins, then the first reused run)
         run: |
           mkdir -p parts
           if [ -d parts-reused ]; then cp -n parts-reused/*.npz parts/ 2>/dev/null || true; fi
+          if [ -d parts-reused2 ]; then cp -n parts-reused2/*.npz parts/ 2>/dev/null || true; fi
           ls -la parts || true
       - name: Speed and sanity summary
         run: python .github/scripts/summarize_parts.py parts | tee summary.md
       - name: Build website
         if: ${{ needs.plan.outputs.mode == 'full' }}
         run: python export_static.py build --parts parts --out public
-      - name: Publish website to gh-pages
+      - name: Publish website (gh-pages when target is "live", site-staging otherwise)
         if: ${{ needs.plan.outputs.mode == 'full' }}
+        env:
+          BRANCH: ${{ needs.plan.outputs.target == 'live' && 'gh-pages' || 'site-staging' }}
         run: |
           cd public
-          git init -q -b gh-pages
+          git init -q -b "$BRANCH"
           git add -A
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "Website from ${GITHUB_SHA::7}"
-          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" gh-pages
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" "$BRANCH"
       - name: Report (bench-results branch)
         if: always()
         env:
@@ -138,8 +182,9 @@ jobs:
           mkdir -p report
           cp summary.md report/ 2>/dev/null || true
           cp public/data/summary.md report/scores.md 2>/dev/null || true
-          cp public/data/meta.json report/meta.json 2>/dev/null || true
-          echo "run ${RUN} · mode ${{ needs.plan.outputs.mode }} · forecast jobs: ${{ needs.forecast.result }} · commit ${GITHUB_SHA::7}" > report/status.txt
+          cp public/data/m5/meta.json report/meta.json 2>/dev/null || true
+          cp public/data/vn1/meta.json report/meta_vn1.json 2>/dev/null || true
+          echo "run ${RUN} · mode ${{ needs.plan.outputs.mode }} · target ${{ needs.plan.outputs.target }} · forecast jobs: ${{ needs.forecast.result }} · commit ${GITHUB_SHA::7}" > report/status.txt
           gh api "repos/${REPO}/actions/runs/${RUN}/jobs?per_page=100" --paginate \
             --jq '.jobs[] | [.name, .status, (.conclusion // ""), .started_at, (.completed_at // "")] | @tsv' > report/jobs.tsv || true
           for id in $(gh api "repos/${REPO}/actions/runs/${RUN}/jobs?per_page=100" --paginate --jq '.jobs[] | select(.conclusion=="failure") | .id'); do

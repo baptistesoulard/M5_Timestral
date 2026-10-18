@@ -27,6 +27,9 @@ print("|---|---|---|---|---|---|---|---|---|---|")
 for p in parts:
     with np.load(p) as z:
         meta = json.loads(str(z["meta"]))
+        if meta.get("kind", "timestral") != "timestral" or meta.get("bench", "m5") != "m5":
+            print(f"| {p.stem} | {meta.get('series')} | {1000 * meta['seconds'] / max(meta.get('series') or 1, 1):.0f} | | | | | | | |")
+            continue
         idx, q, lv = z["idx"], z["q"], list(z["levels"])
     med = q[..., lv.index(0.5)]
     mean = mean_from_quantiles(q, lv)
