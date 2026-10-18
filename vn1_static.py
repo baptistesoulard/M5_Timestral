@@ -90,6 +90,18 @@ def build_vn1(args, out: Path) -> list[str]:
         cf = load_parts(parts, n, bench, HORIZON) if parts.exists() else {}
         if cf:
             win[phase] = (cf, load_vn1(Path(args.data) / "vn1", phase))
+    # diagnostics: weekly totals and errors by demand pattern (share of zero weeks over the last 52)
+    zs52 = (data.train[:, -52:] == 0).mean(1)
+    segs = [zs52 < 0.2, (zs52 >= 0.2) & (zs52 < 0.5), zs52 >= 0.5]
+    tot_actual = actual.sum()
+
+    def seg_stats(point):
+        return [{"share": float(actual[m].sum() / tot_actual), "bias": float((point[m] - actual[m]).sum() / tot_actual),
+                 "mae": float(np.abs(point[m] - actual[m]).sum() / tot_actual)} for m in segs]
+
+    def totals(point):
+        return [round(float(x), 1) for x in np.nan_to_num(point).sum(0)]
+
     cfg_meta = []
     for name, c in configs.items():
         if not c["complete"]:
@@ -121,6 +133,11 @@ def build_vn1(args, out: Path) -> list[str]:
                   f"P{100 * m_['p1']['u']:.0f}, test {m_['p1']['test']['score']:.4f}) · test score {m_['test']['score']:.4f}")
         elif windows:
             print(f"  {name}: {len(windows)}/{len(WINDOWS)} calibration windows, not calibrated")
+        entry["diag"] = {"totals": {"median": totals(med), "mean": totals(mean)},
+                         "segments": {"median": seg_stats(med)}}
+        if extra:
+            entry["diag"]["totals"]["calib"] = totals(extra[0])
+            entry["diag"]["segments"]["calib"] = seg_stats(extra[0])
         cfg_meta.append(entry)
         disp = interp_levels(q, levels, DISPLAY_Q)
         write_chunks(ddir / name, "q", np.concatenate([disp.transpose(0, 2, 1).reshape(n, -1), mean] + extra, axis=1))
@@ -146,6 +163,10 @@ def build_vn1(args, out: Path) -> list[str]:
         "configs": cfg_meta, "default_config": best["name"] if best else None, "baselines": baselines,
         "examples": [{"key": "vx_big", "i": big}, {"key": "vx_mid", "i": mid}, {"key": "vx_lumpy", "i": lumpy}],
         "n_series": n, "actual_total": float(actual.sum()),
+        "diag": {"hist_totals": totals(data.train[:, -26:]), "actual_totals": totals(actual),
+                 "ref_totals": {k: totals(points[k]) for k in ("vn1_1st", "naive", "snaive") if k in points},
+                 "ref_segments": {k: seg_stats(np.nan_to_num(points[k])) for k in ("vn1_1st", "naive") if k in points},
+                 "segment_keys": ["seg_regular", "seg_mid", "seg_lumpy"]},
     }
     (ddir / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     (ddir / "series.json").write_text(json.dumps(

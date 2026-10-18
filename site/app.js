@@ -611,7 +611,8 @@ function renderBenchmarkVN1() {
       }).join("") + "</tbody>";
   }
   renderCalibration();
-  $("ab-note").innerHTML = t("ab_note") + "<br>" + ["none", "price"].map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
+  renderDiagnostic();
+  $("ab-note").innerHTML = t("ab_note") + "<br>" + S.meta.configs.map((c) => c.covariates).filter((k, i, a) => a.indexOf(k) === i).map((k) => `<strong>${esc(t("cov_" + k))}</strong>${S.lang === "fr" ? " :" : ":"} ${esc(t("cov_desc_" + k))}`).join("<br>");
 }
 
 function windowLabel(w) {
@@ -649,6 +650,47 @@ function renderCalibration() {
     xaxis: { ...plotLayout().xaxis, title: { text: t("cal_x"), font: { size: 12, color: muted } } },
     yaxis: { ...plotLayout().yaxis, rangemode: "normal", title: { text: t("col_score"), font: { size: 12, color: muted } } },
     legend: { orientation: "h", yanchor: "bottom", y: 1.02, x: 0, font: { size: 11.5, color: muted } },
+  }), plotConfig());
+}
+
+function renderDiagnostic() {
+  const m = S.meta, D = m.diag, cfgs = m.configs.filter((c) => c.diag);
+  $("diag-section").hidden = !D || !cfgs.length;
+  if (!D || !cfgs.length) return;
+  const sel = cfgs.reduce((a, b) => (valScore(b) < valScore(a) ? b : a)), B = bestVN1(sel);
+  const selName = `${cfgLabel(sel)} · ${varLabel(sel, B.v)}`;
+  const segRow = (name, seg, k) => seg ? seg[k] : null;
+  const pts = [
+    { name: t("diag_ts_median", { cfg: cfgLabel(sel) }), seg: sel.diag.segments.median },
+    sel.diag.segments.calib ? { name: selName, seg: sel.diag.segments.calib, hl: true } : null,
+    D.ref_segments.vn1_1st ? { name: refLabel("vn1_1st"), seg: D.ref_segments.vn1_1st } : null,
+    D.ref_segments.naive ? { name: refLabel("naive"), seg: D.ref_segments.naive } : null,
+  ].filter(Boolean);
+  const head = D.segment_keys.map((k, j) => `<th class="num">${t(k)}<br><span class="muted sub">${t(k + "_sub")} · ${fpct(pts[0].seg[j].share)} ${t("diag_of_sales")}</span></th>`).join("");
+  $("diag-table").innerHTML = `<thead><tr><th>${t("diag_bias_by")}</th>${head}<th class="num">${t("diag_total")}</th></tr></thead><tbody>` +
+    pts.map((p) => {
+      const tot = p.seg.reduce((a, x) => a + x.bias, 0);
+      return `<tr class="${p.hl ? "hl" : ""}"><td>${esc(p.name)}</td>${p.seg.map((x) => `<td class="num">${fpct(x.bias, true, 1)}</td>`).join("")}<td class="num"><strong>${fpct(tot, true, 1)}</strong></td></tr>`;
+    }).join("") + "</tbody>";
+  if (typeof Plotly === "undefined") return;
+  const H = m.hist_days, h = m.horizon, nh = D.hist_totals.length;
+  const hx = [], fx = [];
+  for (let d = H - nh; d < H; d++) hx.push(dayDate(d));
+  for (let d = H; d < H + h; d++) fx.push(dayDate(d));
+  const acc = css("--accent"), muted = css("--muted");
+  const traces = [
+    { x: hx, y: D.hist_totals, name: t("history"), mode: "lines", line: { color: css("--c-history"), width: 1.6 } },
+    { x: fx, y: D.actual_totals, name: t("actual_test"), mode: "lines+markers", line: { color: css("--c-actual"), width: 2 }, marker: { size: 4 } },
+    { x: fx, y: sel.diag.totals.median, name: t("diag_ts_median", { cfg: cfgLabel(sel) }), mode: "lines", line: { color: acc, width: 1.4, dash: "dot" } },
+  ];
+  if (sel.diag.totals.calib) traces.push({ x: fx, y: sel.diag.totals.calib, name: selName, mode: "lines", line: { color: acc, width: 2.8 } });
+  if (D.ref_totals.vn1_1st) traces.push({ x: fx, y: D.ref_totals.vn1_1st, name: refLabel("vn1_1st"), mode: "lines", line: { color: css("--c-winner"), width: 1.6, dash: "dash" } });
+  if (D.ref_totals.snaive) traces.push({ x: fx, y: D.ref_totals.snaive, name: refLabel("snaive"), mode: "lines", line: { color: css("--c-snaive"), width: 1.2, dash: "dot" }, visible: "legendonly" });
+  Plotly.react("diag-chart", traces, plotLayout({
+    margin: { l: 60, r: 14, t: 16, b: 40 },
+    shapes: [{ type: "line", x0: fx[0], x1: fx[0], yref: "paper", y0: 0, y1: 1, line: { color: muted, width: 1, dash: "dash" } }],
+    yaxis: { ...plotLayout().yaxis, title: { text: t("diag_y"), font: { size: 12, color: muted } } },
+    xaxis: dateAxis(),
   }), plotConfig());
 }
 
@@ -707,7 +749,7 @@ function setTab(tab, push = true) {
   }
   if (push) writeHash();
   if (typeof Plotly !== "undefined") requestAnimationFrame(() => {
-    for (const id of ["chart", "svc-chart", "lv-chart", "unc-chart", "cal-chart"]) { const el = $(id); if (el && el.data && !el.closest("[hidden]")) Plotly.Plots.resize(el); }
+    for (const id of ["chart", "svc-chart", "lv-chart", "unc-chart", "cal-chart", "diag-chart"]) { const el = $(id); if (el && el.data && !el.closest("[hidden]")) Plotly.Plots.resize(el); }
   });
 }
 function showGlossary(anchor) {

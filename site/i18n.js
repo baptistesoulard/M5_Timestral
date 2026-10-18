@@ -114,6 +114,13 @@ window.I18N = {
 // Benchmark switch (M5 / VN1), VN1 texts and glossary links. A key ending in "__vn1" or "__m5" replaces the plain
 // key on that benchmark only.
 Object.assign(window.I18N.en, {
+  diag_title: "Where the gap comes from", diag_y: "Units sold / week (all series)",
+  diag_intro: "Weekly sales of all 15,053 series added up. History ends right after the year-end peak and the two holiday weeks; the median forecast starts from that trough, the competition winner returns to the usual January level.",
+  diag_ts_median: "{cfg} · median", diag_bias_by: "Bias by demand pattern (% of total sales)", diag_total: "Total", diag_of_sales: "of sales",
+  seg_regular: "Regular", seg_mid: "Intermediate", seg_lumpy: "Lumpy", seg_regular_sub: "< 20% zero weeks", seg_mid_sub: "20–50% zero weeks", seg_lumpy_sub: "≥ 50% zero weeks",
+  diag_note: "Most of the under-forecast is on <strong>regular</strong> products, not on lumpy ones: it is a question of level after the holidays, not of intermittent demand. The calibrated quantile corrects most of it.",
+  cov_calendar__vn1: "+ e-commerce calendar", cov_desc_calendar__vn1: "Week of the year and e-commerce peak weeks (Black Friday / Cyber Monday, the two weeks before Christmas, Christmas – New Year, Prime Day), known in the past and the future.",
+  cov_sidx: "seasonal index", cov_desc_sidx: "Sales divided by a week-of-year index measured per client on the history (blended with the all-client index); Timestral forecasts the adjusted series and the index is applied back.",
   var_calib: "P{u}, chosen on 4 backtests", calib_name: "Timestral · P{u} (calibrated)", b_best_vn1: "Timestral put forward",
   ab_cal: "Score calibrated",
   cal_title: "Calibration: which quantile to use as the forecast",
@@ -160,6 +167,13 @@ Object.assign(window.I18N.en, {
   footer__vn1: "Data: VN1 competition (SupChains, Flieber, Syrup Tech; CC BY 4.0). Model: Timestral by Mistral AI, weights under a modified MIT licence. Forecasts computed on {date}.",
 });
 Object.assign(window.I18N.fr, {
+  diag_title: "D'où vient l'écart", diag_y: "Unités vendues / semaine (toutes séries)",
+  diag_intro: "Ventes hebdomadaires des 15 053 séries additionnées. L'historique s'arrête juste après le pic de fin d'année et les deux semaines de fêtes ; la prévision médiane part de ce creux, le vainqueur du concours revient au niveau habituel de janvier.",
+  diag_ts_median: "{cfg} · médiane", diag_bias_by: "Biais par profil de demande (% des ventes totales)", diag_total: "Total", diag_of_sales: "des ventes",
+  seg_regular: "Réguliers", seg_mid: "Intermédiaires", seg_lumpy: "Erratiques", seg_regular_sub: "< 20 % sem. à zéro", seg_mid_sub: "20–50 % sem. à zéro", seg_lumpy_sub: "≥ 50 % sem. à zéro",
+  diag_note: "L'essentiel de la sous-prévision porte sur les produits <strong>réguliers</strong>, pas sur les erratiques : c'est une question de niveau après les fêtes, pas de demande intermittente. Le quantile calibré en corrige la plus grande part.",
+  cov_calendar__vn1: "+ calendrier e-commerce", cov_desc_calendar__vn1: "Semaine de l'année et semaines de pic e-commerce (Black Friday / Cyber Monday, les deux semaines avant Noël, Noël – Nouvel An, Prime Day), connues dans le passé et le futur.",
+  cov_sidx: "indice saisonnier", cov_desc_sidx: "Ventes divisées par un indice par semaine de l'année mesuré par client sur l'historique (mélangé à l'indice tous clients) ; Timestral prévoit la série corrigée, puis l'indice est réappliqué.",
   var_calib: "P{u}, choisi sur 4 backtests", calib_name: "Timestral · P{u} (calibré)", b_best_vn1: "Timestral retenu",
   ab_cal: "Score calibré",
   cal_title: "Calibration : quel quantile prendre comme prévision",

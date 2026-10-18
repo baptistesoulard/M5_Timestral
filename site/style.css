@@ -149,6 +149,7 @@ table.data tr.hl td { background: var(--accent-soft); }
 table.data tr.hl td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .tag { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
 .tag.tsfm { border-color: var(--accent); color: var(--accent-ink); }
+table.data th .sub { font-weight: 400; text-transform: none; letter-spacing: 0; }
 .delta-good { color: var(--good); }
 .delta-bad { color: var(--bad); }
 
