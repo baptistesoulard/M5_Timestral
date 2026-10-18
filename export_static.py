@@ -61,15 +61,33 @@ def forecast_vn1(args, fc, progress):
     # products not launched yet at the forecast origin (backtests): no history, forecast 0
     empty = np.isnan(ctx_all).all(axis=1)
     idx_all, idx = idx, idx[~empty[idx]]
+    from vn1bench.seasonal import calendar_covariates, seasonal_index, week_of_year
+
     price = relative_price(data) if args.covariates == "price" else None
-    rows = 2 if price is not None else 1
+    t_hist = data.train.shape[1]
+    cal_num = cal_cat = None
+    if args.covariates == "calendar":  # week of year + e-commerce peak weeks, known in the past and the future
+        cal_num, cal_cat = calendar_covariates(data.dates[: t_hist + H_VN1])
+    sidx = None
+    if args.covariates == "sidx":  # seasonal index per client, measured on the history only
+        sidx = seasonal_index(data.train, data.dates, data.ids["Client"].to_numpy())
+        woy = week_of_year(data.dates[: t_hist + H_VN1])
+        rows_n = np.arange(data.n)[:, None]
+        ctx_all = ctx_all / sidx[rows_n, woy[None, :t_hist]]
+        fut = sidx[rows_n, woy[None, t_hist:]]  # (N, 13)
+    rows = 2 if price is not None else 6 if cal_num is not None else 1
     bs = max(4, min(args.batch_size, 512 // rows))
     out, levels = None, None
     for s in range(0, len(idx), bs):
         b = idx[s : s + bs]
         kw = {"past_covariates": price[b][:, None, :]} if price is not None else {}
+        if cal_num is not None:
+            kw = {"known_covariates": np.broadcast_to(cal_num, (len(b),) + cal_num.shape).copy(),
+                  "categorical_known_covariates": np.broadcast_to(cal_cat, (len(b),) + cal_cat.shape).copy()}
         res = fc.forecast(ctx_all[b][:, None, :], prediction_length=H_VN1, **kw)
         q = res.quantiles[:, 0].cpu().numpy()
+        if sidx is not None:
+            q = q * fut[b][:, :, None]
         if out is None:
             out = np.empty((len(idx),) + q.shape[1:], dtype=np.float32)
             levels = res.quantile_levels
@@ -454,7 +472,7 @@ def main() -> None:
     f.add_argument("--config", required=True)
     f.add_argument("--model", required=True)
     f.add_argument("--bench", default="m5", choices=["m5", "vn1", "vn1val", "vn1bt131", "vn1bt144", "vn1bt157"])
-    f.add_argument("--covariates", default="calendar", choices=["none", "calendar", "full", "rich", "price"])
+    f.add_argument("--covariates", default="calendar", choices=["none", "calendar", "full", "rich", "price", "sidx"])
     f.add_argument("--shard", type=int, default=0)
     f.add_argument("--nshards", type=int, default=1)
     f.add_argument("--probe", type=int, default=0, help="forecast only N series spread over the levels")

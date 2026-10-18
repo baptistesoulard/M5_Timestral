@@ -1,2 +1,27 @@
-{"mode": "full", "target": "live", "only": ["__publish_only__"],
- "reuse_run_ids": ["39133315953", "39130986423", "39117349937", "39077648479"]}
+{
+ "mode": "full",
+ "target": "staging",
+ "only": [
+  "vn1_t28m_calendar",
+  "vn1_t28m_sidx",
+  "vn1_t209m_sidx",
+  "vn1val_t28m_calendar",
+  "vn1val_t28m_sidx",
+  "vn1val_t209m_sidx",
+  "vn1bt131_t28m_calendar",
+  "vn1bt131_t28m_sidx",
+  "vn1bt131_t209m_sidx",
+  "vn1bt144_t28m_calendar",
+  "vn1bt144_t28m_sidx",
+  "vn1bt144_t209m_sidx",
+  "vn1bt157_t28m_calendar",
+  "vn1bt157_t28m_sidx",
+  "vn1bt157_t209m_sidx"
+ ],
+ "reuse_run_ids": [
+  "39133315953",
+  "39130986423",
+  "39117349937",
+  "39077648479"
+ ]
+}
