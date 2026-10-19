@@ -1,15 +1,11 @@
 {
  "mode": "full",
- "target": "staging",
+ "target": "live",
  "only": [
-  "t0g_none",
-  "vn1_t0g_none",
-  "vn1val_t0g_none",
-  "vn1bt131_t0g_none",
-  "vn1bt144_t0g_none",
-  "vn1bt157_t0g_none"
+  "__publish_only__"
  ],
  "reuse_run_ids": [
+  "39286698770",
   "39140742693",
   "39133315953",
   "39130986423",

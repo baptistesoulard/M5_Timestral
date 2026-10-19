@@ -341,6 +341,25 @@ comes from the vendor.
 - The backtests ranked these options the same way as the test: both seasonality approaches scored clearly worse
   on 2023 (0.56 and 0.69 against 0.50), so they would have been discarded without looking at the test weeks.
 
+### And t0-gamma?
+
+t0-gamma, the foundation model of The Forecasting Company (about 256M parameters, open weights), was run afterwards
+with exactly the same protocol: sales only, quantile chosen on the four 2023 backtests, applied once to the test weeks.
+
+| | Median | Calibrated quantile | Bias (calibrated) |
+|---|---|---|---|
+| t0-gamma | 0.524 | **0.448** (P57) | +0.1% |
+| Timestral 28M | 0.498 | 0.470 (P57) | +2.0% |
+| VN1 winner | | 0.464 | +1.1% |
+
+- **Once calibrated, t0-gamma scores better than the competition winner**, with almost no bias. Its median alone is
+  worse than Timestral's (bias −9.5%): the choice of the quantile matters even more for it.
+- On M5, sales only, t0-gamma also does better than Timestral 28M sales only (WRMSSE 0.639 against 0.673), but
+  Timestral 28M with the calendar stays ahead (0.615). Its quantiles are a little less accurate (WSPL 0.170 against
+  0.162).
+- **Same caution as for Timestral**: VN1 and M5 have been public for years, and nothing here says whether they were
+  part of t0-gamma's training data. A dataset never published is the only clean test.
+
 ### Takeaways for demand planning
 
 - **Choose the point of the distribution for the metric you are judged on.** The median minimises absolute error;
@@ -420,6 +439,26 @@ ce n'était pas une participation éligible et le chiffre vient de l'éditeur.
   encore abaissé le niveau de janvier.
 - Les backtests ont classé ces options comme le test : les deux approches de saisonnalité faisaient nettement moins
   bien sur 2023 (0,56 et 0,69 contre 0,50), elles auraient donc été écartées sans regarder les semaines de test.
+
+### Et t0-gamma ?
+
+t0-gamma, le modèle de fondation de The Forecasting Company (environ 256 millions de paramètres, poids ouverts), a
+ensuite été testé avec exactement le même protocole : ventes seules, quantile choisi sur les quatre backtests 2023,
+appliqué une seule fois aux semaines de test.
+
+| | Médiane | Quantile calibré | Biais (calibré) |
+|---|---|---|---|
+| t0-gamma | 0,524 | **0,448** (P57) | +0,1 % |
+| Timestral 28M | 0,498 | 0,470 (P57) | +2,0 % |
+| Vainqueur VN1 | | 0,464 | +1,1 % |
+
+- **Une fois calibré, t0-gamma fait mieux que le vainqueur du concours**, presque sans biais. Sa médiane seule est
+  moins bonne que celle de Timestral (biais −9,5 %) : le choix du quantile compte encore plus pour lui.
+- Sur M5, ventes seules, t0-gamma fait aussi mieux que Timestral 28M ventes seules (WRMSSE 0,639 contre 0,673), mais
+  Timestral 28M avec le calendrier reste devant (0,615). Ses quantiles sont un peu moins précis (WSPL 0,170 contre
+  0,162).
+- **Même prudence que pour Timestral** : VN1 et M5 sont publics depuis des années, et rien ici ne dit s'ils faisaient
+  partie des données d'entraînement de t0-gamma. Seul un jeu jamais publié permettrait un test propre.
 
 ### Enseignements pour la prévision de la demande
 
