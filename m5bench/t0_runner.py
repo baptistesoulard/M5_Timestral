@@ -23,8 +23,15 @@ def load_t0(name: str = "t0-gamma"):
     return T0Forecaster.from_pretrained(f"theforecastingcompany/{name}").eval()
 
 
-def t0_forecast(model, context: np.ndarray, horizon: int, batch_size: int = 128, progress=None):
-    """context (N, T) with NaN before each series starts → quantiles (N, horizon, 21), levels."""
+def weekday_rows(codes: np.ndarray, period: int) -> np.ndarray:
+    """Cyclical encoding of a periodic code (day of week, week of year): (2, T) sine and cosine."""
+    a = 2 * np.pi * np.asarray(codes, dtype=np.float64) / period
+    return np.stack([np.sin(a), np.cos(a)]).astype(np.float32)
+
+
+def t0_forecast(model, context: np.ndarray, horizon: int, batch_size: int = 128, progress=None, future=None):
+    """context (N, T) with NaN before each series starts → quantiles (N, horizon, 21), levels.
+    future: optional callable (start, end) → (end - start, F, T + horizon) covariates known in the future."""
     import torch
 
     ctx = np.asarray(context, dtype=np.float32).copy()
@@ -33,9 +40,12 @@ def t0_forecast(model, context: np.ndarray, horizon: int, batch_size: int = 128,
     out = np.empty((len(ctx), horizon, len(LEVELS)), dtype=np.float32)
     with torch.no_grad():
         for s in range(0, len(ctx), batch_size):
+            kw = {}
+            if future is not None:
+                kw["future_covariates"] = np.ascontiguousarray(future(s, min(s + batch_size, len(ctx))), dtype=np.float32)
             res = model.predict(ctx[s : s + batch_size], horizon=horizon, quantile_levels=LEVELS,
                                 trim_leading_missing=True, symmetric_averaging=True,
-                                clip_nonnegative=True, snap_integers=True)
+                                clip_nonnegative=True, snap_integers=True, **kw)
             q = res.quantiles
             out[s : s + len(q)] = q.cpu().numpy() if hasattr(q, "cpu") else np.asarray(q)
             if progress is not None:

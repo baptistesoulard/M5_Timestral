@@ -84,7 +84,13 @@ def forecast_vn1(args, fc, progress):
     if args.model.startswith("t0"):  # t0 (The Forecasting Company), sales only
         from m5bench.t0_runner import t0_forecast
 
-        out, levels = t0_forecast(fc, ctx_all[idx], H_VN1, batch_size=128, progress=progress)
+        fut_fn = None
+        if cal_num is not None:  # e-commerce peak weeks + week of year (sine / cosine), known in the future
+            from m5bench.t0_runner import weekday_rows
+
+            rows_t0 = np.concatenate([cal_num, weekday_rows(cal_cat[0], 52)]).astype(np.float32)
+            fut_fn = lambda a, b: np.broadcast_to(rows_t0, (b - a,) + rows_t0.shape)  # noqa: E731
+        out, levels = t0_forecast(fc, ctx_all[idx], H_VN1, batch_size=128, progress=progress, future=fut_fn)
         if sidx is not None:
             out = out * fut[idx][:, :, None]
         idx_iter = []
@@ -177,8 +183,22 @@ def cmd_forecast(args) -> None:
         from m5bench.data import mask_leading_zeros
         from m5bench.t0_runner import t0_forecast
 
+        fut_fn = None
+        if args.covariates == "calendar":  # SNAP, event day, day of week (sine / cosine), known in the future
+            from m5bench.t0_runner import weekday_rows
+            from m5bench.timestral_runner import covariate_bank
+
+            bank = covariate_bank(data)
+            t_all = hist.shape[1] + HORIZON
+            dow = weekday_rows(bank.cal["wday"][:t_all], 7)
+            event = (np.asarray(bank.cal["event"][:t_all]) > 0).astype(np.float32)[None, :]
+
+            def fut_fn(a, b):
+                snap = bank.build(idx[a:b], "calendar", 0, t_all)["known_covariates"][:, :1, :]
+                rest = np.broadcast_to(np.concatenate([event, dow]), (b - a, 3, t_all))
+                return np.concatenate([snap, rest], axis=1)
         q, levels = t0_forecast(fc, mask_leading_zeros(hist[idx]), HORIZON, batch_size=min(args.batch_size, 64),
-                                progress=progress)
+                                progress=progress, future=fut_fn)
     else:
         q, levels = forecast_series(fc, data, idx, hist, None, args.covariates, batch_size=args.batch_size,
                                     progress=progress)
