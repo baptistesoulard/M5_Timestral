@@ -257,6 +257,14 @@ GLOSSARY = [
          "Quantiles read directly from recent history, per day of week (last 26 weeks): a simple probabilistic yardstick.",
          "Quantiles lus directement dans l'historique récent, par jour de semaine (26 dernières semaines) : un étalon "
          "probabiliste simple."),
+        ("t0", "t0-gamma", "t0-gamma",
+         "The time-series foundation model of The Forecasting Company (about 256 million parameters, open weights, "
+         "code under Apache 2.0). Same principle as Timestral: 21 quantiles per period, no training on the data. Run "
+         "here with its recommended settings and the same protocol as Timestral.",
+         "Le modèle de fondation pour séries temporelles de The Forecasting Company (environ 256 millions de "
+         "paramètres, poids ouverts, code sous licence Apache 2.0). Même principe que Timestral : 21 quantiles par "
+         "période, sans entraînement sur les données. Utilisé ici avec ses réglages recommandés et le même protocole "
+         "que Timestral."),
         ("timestral", "Timestral", "Timestral",
          "Mistral AI's time-series foundation model (5M to 209M parameters). Reads the history, and covariates if given, "
          "and returns 21 quantiles per period in one pass, without training on the data. The mean is computed from those "

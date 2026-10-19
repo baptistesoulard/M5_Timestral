@@ -21,6 +21,7 @@
   --c-arima: #B07A12;
   --c-naive: #8A6A4A;
   --c-ma12: #C2577E;
+  --c-t0: #2F6FB0;
   --grid: #ECE8E2;
   --font-display: "Fraunces", Georgia, "Times New Roman", serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -32,7 +33,7 @@
     --bg: #141517; --surface: #1C1E21; --ink: #ECECEA; --muted: #A3A9B1; --line: #30343A;
     --accent: #FF8A4C; --accent-ink: #FFB38A; --accent-soft: #3A2416; --on-accent: #1A0E06;
     --good: #55C26F; --bad: #FF7B72; --c-history: #7D858E; --c-actual: #ECECEA;
-    --c-snaive: #7DA7D9; --c-tsb: #6CC4BE; --c-ets: #7CC46C; --c-winner: #D08CC5; --c-arima: #E0B45C; --c-naive: #C4A483; --c-ma12: #E58CAE; --grid: #262A2F;
+    --c-snaive: #7DA7D9; --c-tsb: #6CC4BE; --c-ets: #7CC46C; --c-winner: #D08CC5; --c-arima: #E0B45C; --c-naive: #C4A483; --c-ma12: #E58CAE; --c-t0: #7FB2E8; --grid: #262A2F;
     color-scheme: dark;
   }
 }
@@ -40,7 +41,7 @@
   --bg: #141517; --surface: #1C1E21; --ink: #ECECEA; --muted: #A3A9B1; --line: #30343A;
   --accent: #FF8A4C; --accent-ink: #FFB38A; --accent-soft: #3A2416; --on-accent: #1A0E06;
   --good: #55C26F; --bad: #FF7B72; --c-history: #7D858E; --c-actual: #ECECEA;
-  --c-snaive: #7DA7D9; --c-tsb: #6CC4BE; --c-ets: #7CC46C; --c-winner: #D08CC5; --c-arima: #E0B45C; --c-naive: #C4A483; --c-ma12: #E58CAE; --grid: #262A2F;
+  --c-snaive: #7DA7D9; --c-tsb: #6CC4BE; --c-ets: #7CC46C; --c-winner: #D08CC5; --c-arima: #E0B45C; --c-naive: #C4A483; --c-ma12: #E58CAE; --c-t0: #7FB2E8; --grid: #262A2F;
   color-scheme: dark;
 }
 

@@ -60,7 +60,8 @@ function methodAnchor(m) {
   if (GLOSS[m]) return GLOSS[m];
   if (m === "winner" || m.startsWith("M5 #")) return "lightgbm";
   if (m.startsWith("vn1_")) return null; // VN1 top 5: varied methods, no single glossary entry
-  return S.meta.configs.some((c) => c.name === m) ? "timestral" : null;
+  const c = S.meta.configs.find((x) => x.name === m);
+  return c ? cfgAnchor(c) : null;
 }
 const help = (anchor) => ` <a href="#glossary" class="gl help" data-g="${anchor}" aria-label="${esc(t("what_is"))}">?</a>`;
 
@@ -135,6 +136,10 @@ const bestVN1 = (c) => (c.calib ? { v: "calib", ...c.calib.test }
 const valScore = (c) => (c.calib ? c.calib.val.score : bestVN1(c).score);
 // one reference version of Timestral across the site (the other sizes stay in the size / covariates table)
 const refCfgs = () => S.meta.configs.filter((c) => !S.meta.reference_model || c.model === S.meta.reference_model);
+// other foundation models (t0-gamma…), shown next to the Timestral reference version
+const isTimestral = (c) => c.model.startsWith("Timestral");
+const otherCfgs = () => S.meta.configs.filter((c) => !isTimestral(c));
+const cfgAnchor = (c) => (c.model.startsWith("t0") ? "t0" : "timestral");
 function refConfig() {
   const r = refCfgs(), d = r.find((c) => c.name === S.meta.default_config);
   if (d) return d;
@@ -467,6 +472,7 @@ function renderBenchmark() {
       vsCard("b_vs_ets", base.ets),
       base.arima ? vsCard("b_vs_arima", base.arima) : vsCard("b_vs_snaive", base.snaive),
       vsCard("b_vs_winner", winner && winner[1]),
+      ...otherCfgs().map((o) => kpi(t("b_vs_model", { m: esc(o.model) }), fpct(1 - bs / bestVariant(o).s, true), `WRMSSE ${fnum(bestVariant(o).s, 4)}`, bs < bestVariant(o).s ? "good" : "bad")),
     ].join("") + uncertaintyKpi();
   } else {
     $("bench-kpis").innerHTML = "";
@@ -478,7 +484,7 @@ function renderBenchmark() {
     const comp = k.startsWith("M5 #");
     rows.push({ name: comp ? k : methodLabel(k), anchor: methodAnchor(k), type: comp ? "comp" : "stat", s, point: "" });
   }
-  { const c = refConfig(), b = bestVariant(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: b.s, point: t("var_" + b.v) }); }
+  for (const c of [refConfig(), ...otherCfgs()]) { const b = bestVariant(c); rows.push({ name: cfgLabel(c), anchor: cfgAnchor(c), type: "tsfm", s: b.s, point: t("var_" + b.v) }); }
   rows.sort((a, b) => a.s - b.s);
   $("lb-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th>${t("lb_point")}</th><th class="num">WRMSSE</th></tr></thead><tbody>` +
     rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.s, 4)}</td></tr>`).join("") + "</tbody>";
@@ -500,6 +506,7 @@ function renderBenchmark() {
     if (cfgs.length) {
       const best = refConfig();
       series.push({ name: cfgLabel(best), y: lvl(best.name, bestVariant(best).v, "bottom-up"), color: css("--accent"), width: 3 });
+      for (const o of otherCfgs()) series.push({ name: cfgLabel(o), y: lvl(o.name, bestVariant(o).v, "bottom-up"), color: css("--c-t0"), width: 2.2 });
     }
     for (const k of ["ets", "arima", "snaive", "tsb"]) if (k in base) series.push({ name: methodLabel(k), y: lvl(k, "", "bottom-up"), color: css(REF_COLOR[k]) });
     if (winner) series.push({ name: refLabel("winner"), y: lvl(winner[0], "", "bottom-up"), color: css("--c-winner") });
@@ -544,7 +551,7 @@ function uncertaintyKpi() {
 }
 function renderUncertainty() {
   const m = S.meta, rows = [];
-  { const c = refConfig(); if (c) rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", s: c.wspl, levels: null, cfg: c.name }); }
+  for (const c of S.meta.configs.length ? [refConfig(), ...otherCfgs()] : []) rows.push({ name: cfgLabel(c), anchor: cfgAnchor(c), type: "tsfm", s: c.wspl, levels: null, cfg: c.name });
   for (const p of m.uncertainty_published || []) rows.push({ name: t(p.key), anchor: p.key === "unc_winner" ? "lightgbm" : "arima", type: p.key === "unc_winner" ? "comp" : "stat", s: p.wspl, levels: p.levels });
   const emp = m.baselines.find((b) => b.metric === "wspl");
   if (emp) rows.push({ name: t("unc_emp"), anchor: "empirical", type: "stat", s: emp.score });
@@ -562,6 +569,7 @@ function renderUncertainty() {
   };
   const best = bestWspl(), series = [];
   if (best) series.push({ name: cfgLabel(best), y: lvl(best.name), color: css("--accent"), width: 3 });
+  for (const o of otherCfgs()) series.push({ name: cfgLabel(o), y: lvl(o.name), color: css("--c-t0"), width: 2.2 });
   for (const p of m.uncertainty_published || []) series.push({ name: t(p.key), y: p.levels, color: css(p.key === "unc_winner" ? "--c-winner" : "--c-arima") });
   if (emp) series.push({ name: t("unc_emp"), y: lvl(emp.method), color: css("--c-history") });
   Plotly.react("unc-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8 }, marker: { size: 6 } })),
@@ -591,6 +599,7 @@ function renderBenchmarkVN1() {
       bestStat ? vs("b_vs_beststat", bestStat, `${esc(methodLabel(bestStat.method))} · ${fnum(bestStat.score, 4)}`) : "",
       vs("b_vs_winner", base.vn1_1st, t("k_score_of", { v: fnum(base.vn1_1st && base.vn1_1st.score, 4) })),
       kpi(t("b_rank"), rank <= comp.length ? `#${rank}` : t("b_rank_out", { n: comp.length }), t("b_rank_sub")),
+      ...otherCfgs().map((o) => { const O = bestVN1(o); return vs("b_vs_model", O, `${esc(o.model)} · ${varLabel(o, O.v)} · ${fnum(O.score, 4)}`).replace("{m}", esc(o.model)); }),
     ].join("");
   } else {
     $("bench-kpis").innerHTML = "";
@@ -600,7 +609,7 @@ function renderBenchmarkVN1() {
     name: methodLabel(b.method), anchor: methodAnchor(b.method), point: "",
     type: b.family === "competition" ? "comp" : b.family === "official" ? "official" : "stat", ...b,
   }));
-  { const c = refConfig(), b = bestVN1(c); rows.push({ name: cfgLabel(c), anchor: "timestral", type: "tsfm", point: varLabel(c, b.v), ...b }); }
+  for (const c of [refConfig(), ...otherCfgs()]) { const b = bestVN1(c); rows.push({ name: cfgLabel(c), anchor: cfgAnchor(c), type: "tsfm", point: varLabel(c, b.v), ...b }); }
   rows.sort((a, b) => a.score - b.score);
   $("lb-table").innerHTML = `<thead><tr><th class="num">${t("lb_rank")}</th><th>${t("lb_method")}</th><th>${t("lb_type")}</th><th>${t("lb_point")}</th><th class="num">${t("col_score")}</th><th class="num">MAE%</th><th class="num">${t("col_bias")}</th></tr></thead><tbody>` +
     rows.map((r, k) => `<tr class="${r.type === "tsfm" ? "hl" : ""}"><td class="num">${k + 1}</td><td>${glossLink(r.name, r.anchor)}</td><td>${typeTag(r.type)}</td><td>${esc(r.point)}</td><td class="num">${fnum(r.score, 4)}</td><td class="num">${fpct(r.mae, false, 1)}</td><td class="num">${fpct(r.bias, true, 1)}</td></tr>`).join("") + "</tbody>";
@@ -727,7 +736,7 @@ function applyTexts() {
     fillSelect(lvSel, Array.from({ length: 12 }, (_, k) => String(k + 1)), t("lv_names").map((n, k) => `${k + 1}. ${n}`), lv);
   }
   const cfgSel = $("sel-config"), cv = S.meta.configs.some((c) => c.name === cfgSel.value) ? cfgSel.value : S.meta.default_config;
-  const rc = refCfgs();
+  const rc = [...refCfgs(), ...otherCfgs()];
   fillSelect(cfgSel, rc.map((c) => c.name), rc.map(cfgLabel), rc.some((c) => c.name === cv) ? cv : refConfig().name);
   updateCfgHint();
   $("examples").innerHTML = S.meta.examples.map((e) => `<button type="button" data-i="${e.i}">${esc(t(e.key))}</button>`).join("");

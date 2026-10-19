@@ -37,7 +37,7 @@ window.I18N = {
     bench_intro: "Every Timestral configuration forecast <strong>all 42,840 series</strong> once, on a free 4-vCPU GitHub Actions runner, without any training on M5. Scores use the competition's official rules and test period. Baselines were computed with the same code.",
     b_best: "Best Timestral", b_vs_ets: "vs seasonal AutoETS", b_vs_snaive: "vs seasonal naive", b_vs_winner: "vs M5 winner",
     lb_title: "Leaderboard · official WRMSSE (lower is better)", lb_rank: "#", lb_method: "Method", lb_type: "Type", lb_point: "Point forecast",
-    type_stat: "Statistical", type_comp: "Competition (LightGBM…)", type_tsfm: "Timestral zero-shot",
+    type_stat: "Statistical", type_comp: "Competition (LightGBM…)", type_tsfm: "Foundation model, zero-shot",
     lv_title: "Accuracy by level of the hierarchy", lv_note: "Aggregates (levels 1–9) are smooth series; item levels (10–12) are mostly intermittent.",
     unc_title: "Uncertainty · quantile accuracy (WSPL, lower is better)",
     unc_intro: "The M5 competition had a second track, scored on 9 quantiles of each of the 42,840 series (WSPL). It is the track closest to service-level and safety-stock decisions. Competition figures come from the organisers' published results (International Journal of Forecasting, 2022).",
@@ -90,7 +90,7 @@ window.I18N = {
     bench_intro: "Chaque configuration de Timestral a prévu <strong>les 42 840 séries</strong> une fois, sur un serveur GitHub Actions gratuit à 4 vCPU, sans aucun entraînement sur M5. Les scores suivent les règles et la période de test officielles du concours. Les méthodes de référence ont été calculées avec le même code.",
     b_best: "Meilleur Timestral", b_vs_ets: "vs AutoETS saisonnier", b_vs_snaive: "vs naïf saisonnier", b_vs_winner: "vs vainqueur M5",
     lb_title: "Classement · WRMSSE officiel (plus bas = meilleur)", lb_rank: "#", lb_method: "Méthode", lb_type: "Type", lb_point: "Prévision ponctuelle",
-    type_stat: "Statistique", type_comp: "Concours (LightGBM…)", type_tsfm: "Timestral zero-shot",
+    type_stat: "Statistique", type_comp: "Concours (LightGBM…)", type_tsfm: "Modèle de fondation, zero-shot",
     lv_title: "Précision par niveau de la hiérarchie", lv_note: "Les agrégats (niveaux 1 à 9) sont des séries lisses ; les niveaux article (10 à 12) sont surtout intermittents.",
     unc_title: "Incertitude · précision des quantiles (WSPL, plus bas = meilleur)",
     unc_intro: "Le concours M5 avait une seconde piste, notée sur 9 quantiles de chacune des 42 840 séries (WSPL). C'est la piste la plus proche des décisions de niveau de service et de stock de sécurité. Les chiffres du concours viennent des résultats publiés par les organisateurs (International Journal of Forecasting, 2022).",
@@ -114,6 +114,7 @@ window.I18N = {
 // Benchmark switch (M5 / VN1), VN1 texts and glossary links. A key ending in "__vn1" or "__m5" replaces the plain
 // key on that benchmark only.
 Object.assign(window.I18N.en, {
+  b_vs_model: "Timestral vs {m}",
   b_ref: "Timestral 28M, reference version",
   ab_size_note: "<strong>Reference version.</strong> The site shows <strong>Timestral 28M</strong> everywhere else: on M5 it is as accurate as the 209M model (WRMSSE 0.615 against 0.617) and about 7 times faster. The 209M model only does clearly better on quantiles (WSPL 0.154, level with the Uncertainty winner, against 0.162). The 5M model falls behind on daily data (0.712).",
   ab_size_note__vn1: "<strong>Reference version.</strong> The site shows <strong>Timestral 28M</strong> everywhere else. On VN1, size changes almost nothing once the quantile is calibrated: 0.468 for the 5M model, 0.470 for the 28M and 0.467 for the 209M, all 3rd in the competition, at 1, 5 and 36 ms per series.",
@@ -170,6 +171,7 @@ Object.assign(window.I18N.en, {
   footer__vn1: "Data: VN1 competition (SupChains, Flieber, Syrup Tech; CC BY 4.0). Model: Timestral by Mistral AI, weights under a modified MIT licence. Forecasts computed on {date}.",
 });
 Object.assign(window.I18N.fr, {
+  b_vs_model: "Timestral vs {m}",
   b_ref: "Timestral 28M, version de référence",
   ab_size_note: "<strong>Version de référence.</strong> Le reste du site montre <strong>Timestral 28M</strong> : sur M5, il est aussi précis que le 209M (WRMSSE 0,615 contre 0,617) et environ 7 fois plus rapide. Le 209M ne fait nettement mieux que sur les quantiles (WSPL 0,154, à égalité avec le vainqueur de la piste Incertitude, contre 0,162). Le 5M décroche sur des données journalières (0,712).",
   ab_size_note__vn1: "<strong>Version de référence.</strong> Le reste du site montre <strong>Timestral 28M</strong>. Sur VN1, la taille ne change presque rien une fois le quantile calibré : 0,468 pour le 5M, 0,470 pour le 28M et 0,467 pour le 209M, tous 3e du concours, pour 1, 5 et 36 ms par série.",
