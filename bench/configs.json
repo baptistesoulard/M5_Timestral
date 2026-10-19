@@ -52,5 +52,12 @@
   {"name": "vn1bt144_t209m_sidx", "bench": "vn1bt144", "model": "Timestral-209M", "covariates": "sidx", "shards": 2, "probe_ms": 250},
   {"name": "vn1bt157_t28m_calendar", "bench": "vn1bt157", "model": "Timestral-28M", "covariates": "calendar", "shards": 3, "probe_ms": 250},
   {"name": "vn1bt157_t28m_sidx", "bench": "vn1bt157", "model": "Timestral-28M", "covariates": "sidx", "shards": 1, "probe_ms": 40},
-  {"name": "vn1bt157_t209m_sidx", "bench": "vn1bt157", "model": "Timestral-209M", "covariates": "sidx", "shards": 2, "probe_ms": 250}
+  {"name": "vn1bt157_t209m_sidx", "bench": "vn1bt157", "model": "Timestral-209M", "covariates": "sidx", "shards": 2, "probe_ms": 250},
+
+  {"name": "t0g_none", "model": "t0-gamma", "covariates": "none", "shards": 12, "probe_ms": 500},
+  {"name": "vn1_t0g_none", "bench": "vn1", "model": "t0-gamma", "covariates": "none", "shards": 2, "probe_ms": 120},
+  {"name": "vn1val_t0g_none", "bench": "vn1val", "model": "t0-gamma", "covariates": "none", "shards": 2, "probe_ms": 120},
+  {"name": "vn1bt131_t0g_none", "bench": "vn1bt131", "model": "t0-gamma", "covariates": "none", "shards": 2, "probe_ms": 120},
+  {"name": "vn1bt144_t0g_none", "bench": "vn1bt144", "model": "t0-gamma", "covariates": "none", "shards": 2, "probe_ms": 120},
+  {"name": "vn1bt157_t0g_none", "bench": "vn1bt157", "model": "t0-gamma", "covariates": "none", "shards": 2, "probe_ms": 120}
 ]

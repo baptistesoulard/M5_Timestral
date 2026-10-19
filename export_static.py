@@ -81,7 +81,16 @@ def forecast_vn1(args, fc, progress):
     rows = 2 if price is not None else 6 if cal_num is not None else 1
     bs = max(4, min(args.batch_size, 512 // rows))
     out, levels = None, None
-    for s in range(0, len(idx), bs):
+    if args.model.startswith("t0"):  # t0 (The Forecasting Company), sales only
+        from m5bench.t0_runner import t0_forecast
+
+        out, levels = t0_forecast(fc, ctx_all[idx], H_VN1, batch_size=128, progress=progress)
+        if sidx is not None:
+            out = out * fut[idx][:, :, None]
+        idx_iter = []
+    else:
+        idx_iter = range(0, len(idx), bs)
+    for s in idx_iter:
         b = idx[s : s + bs]
         kw = {"past_covariates": price[b][:, None, :]} if price is not None else {}
         if cal_num is not None:
@@ -110,8 +119,14 @@ def cmd_forecast(args) -> None:
 
     if args.threads:
         torch.set_num_threads(args.threads)
+    if args.model.startswith("t0"):
+        from m5bench.t0_runner import load_t0
+
+        fc_loader = lambda: load_t0(args.model)  # noqa: E731
+    else:
+        fc_loader = lambda: load_forecaster(args.model)  # noqa: E731
     if args.bench.startswith("vn1"):
-        fc = load_forecaster(args.model)
+        fc = fc_loader()
         t0, last = time.time(), [0.0]
 
         def progress(done, total):
@@ -144,7 +159,7 @@ def cmd_forecast(args) -> None:
           f"{torch.get_num_threads()} threads · {platform.processor() or platform.machine()}", flush=True)
 
     t_load = time.time()
-    fc = load_forecaster(args.model)
+    fc = fc_loader()
     print(f"model loaded in {time.time() - t_load:.0f} s", flush=True)
 
     t0 = time.time()
@@ -158,8 +173,15 @@ def cmd_forecast(args) -> None:
             print(f"  {done}/{total} series · {rate * 1000:.0f} ms/series · ~{rate * (total - done) / 60:.0f} min left",
                   flush=True)
 
-    q, levels = forecast_series(fc, data, idx, hist, None, args.covariates, batch_size=args.batch_size,
+    if args.model.startswith("t0"):  # t0 (The Forecasting Company), sales only, leading zeros masked
+        from m5bench.data import mask_leading_zeros
+        from m5bench.t0_runner import t0_forecast
+
+        q, levels = t0_forecast(fc, mask_leading_zeros(hist[idx]), HORIZON, batch_size=min(args.batch_size, 64),
                                 progress=progress)
+    else:
+        q, levels = forecast_series(fc, data, idx, hist, None, args.covariates, batch_size=args.batch_size,
+                                    progress=progress)
     seconds = time.time() - t0
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)

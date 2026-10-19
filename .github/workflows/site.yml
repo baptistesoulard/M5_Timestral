@@ -61,6 +61,10 @@ jobs:
         run: |
           pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu
           pip install --quiet -r requirements-site.txt
+          if [[ "${{ matrix.model }}" == t0* ]]; then pip install --quiet "tfc-t0[torch]>=0.6.0"; fi
+      - name: Model card (licence of the weights)
+        if: ${{ startsWith(matrix.model, 't0') }}
+        run: python -c "from huggingface_hub import model_info; i = model_info('theforecastingcompany/${{ matrix.model }}'); print('LICENCE', (i.card_data or {}).get('license'), [t for t in i.tags if t.startswith('license')])" || true
       - name: Install (statistical baselines)
         if: ${{ matrix.kind == 'baseline' }}
         run: pip install --quiet numpy pandas scipy statsforecast
