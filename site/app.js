@@ -472,7 +472,7 @@ function renderBenchmark() {
       vsCard("b_vs_ets", base.ets),
       base.arima ? vsCard("b_vs_arima", base.arima) : vsCard("b_vs_snaive", base.snaive),
       vsCard("b_vs_winner", winner && winner[1]),
-      ...otherCfgs().map((o) => kpi(t("b_vs_model", { m: esc(o.model) }), fpct(1 - bs / bestVariant(o).s, true), `WRMSSE ${fnum(bestVariant(o).s, 4)}`, bs < bestVariant(o).s ? "good" : "bad")),
+      ...otherCfgs().map((o) => kpi(t("b_vs_model", { m: esc(cfgLabel(o)) }), fpct(1 - bs / bestVariant(o).s, true), `WRMSSE ${fnum(bestVariant(o).s, 4)}`, bs < bestVariant(o).s ? "good" : "bad")),
     ].join("") + uncertaintyKpi();
   } else {
     $("bench-kpis").innerHTML = "";
@@ -506,11 +506,11 @@ function renderBenchmark() {
     if (cfgs.length) {
       const best = refConfig();
       series.push({ name: cfgLabel(best), y: lvl(best.name, bestVariant(best).v, "bottom-up"), color: css("--accent"), width: 3 });
-      for (const o of otherCfgs()) series.push({ name: cfgLabel(o), y: lvl(o.name, bestVariant(o).v, "bottom-up"), color: css("--c-t0"), width: 2.2 });
+      otherCfgs().forEach((o, k) => series.push({ name: cfgLabel(o), y: lvl(o.name, bestVariant(o).v, "bottom-up"), color: css("--c-t0"), width: 2.2, dash: k ? "dot" : "solid" }));
     }
     for (const k of ["ets", "arima", "snaive", "tsb"]) if (k in base) series.push({ name: methodLabel(k), y: lvl(k, "", "bottom-up"), color: css(REF_COLOR[k]) });
     if (winner) series.push({ name: refLabel("winner"), y: lvl(winner[0], "", "bottom-up"), color: css("--c-winner") });
-    Plotly.react("lv-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8 }, marker: { size: 6 } })),
+    Plotly.react("lv-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8, dash: s.dash || "solid" }, marker: { size: 6 } })),
       plotLayout({
         margin: small ? { l: 44, r: 10, t: 10, b: 40 } : { l: 52, r: 14, t: 10, b: 110 }, hovermode: "x unified",
         xaxis: { ...plotLayout().xaxis, tickangle: small ? 0 : -35, type: "category",
@@ -569,10 +569,10 @@ function renderUncertainty() {
   };
   const best = bestWspl(), series = [];
   if (best) series.push({ name: cfgLabel(best), y: lvl(best.name), color: css("--accent"), width: 3 });
-  for (const o of otherCfgs()) series.push({ name: cfgLabel(o), y: lvl(o.name), color: css("--c-t0"), width: 2.2 });
+  otherCfgs().forEach((o, k) => series.push({ name: cfgLabel(o), y: lvl(o.name), color: css("--c-t0"), width: 2.2, dash: k ? "dot" : "solid" }));
   for (const p of m.uncertainty_published || []) series.push({ name: t(p.key), y: p.levels, color: css(p.key === "unc_winner" ? "--c-winner" : "--c-arima") });
   if (emp) series.push({ name: t("unc_emp"), y: lvl(emp.method), color: css("--c-history") });
-  Plotly.react("unc-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8 }, marker: { size: 6 } })),
+  Plotly.react("unc-chart", series.map((s) => ({ x: xs, y: s.y, name: s.name, mode: "lines+markers", line: { color: s.color, width: s.width || 1.8, dash: s.dash || "solid" }, marker: { size: 6 } })),
     plotLayout({
       margin: small ? { l: 44, r: 10, t: 10, b: 40 } : { l: 52, r: 14, t: 10, b: 110 }, hovermode: "x unified",
       xaxis: { ...plotLayout().xaxis, tickangle: small ? 0 : -35, type: "category", title: small ? { text: t("level"), font: { size: 12, color: css("--muted") } } : undefined },
@@ -599,7 +599,7 @@ function renderBenchmarkVN1() {
       bestStat ? vs("b_vs_beststat", bestStat, `${esc(methodLabel(bestStat.method))} · ${fnum(bestStat.score, 4)}`) : "",
       vs("b_vs_winner", base.vn1_1st, t("k_score_of", { v: fnum(base.vn1_1st && base.vn1_1st.score, 4) })),
       kpi(t("b_rank"), rank <= comp.length ? `#${rank}` : t("b_rank_out", { n: comp.length }), t("b_rank_sub")),
-      ...otherCfgs().map((o) => { const O = bestVN1(o); return vs("b_vs_model", O, `${esc(o.model)} · ${varLabel(o, O.v)} · ${fnum(O.score, 4)}`).replace("{m}", esc(o.model)); }),
+      ...otherCfgs().map((o) => { const O = bestVN1(o); return vs("b_vs_model", O, `${varLabel(o, O.v)} · ${fnum(O.score, 4)}`).replace("{m}", esc(cfgLabel(o))); }),
     ].join("");
   } else {
     $("bench-kpis").innerHTML = "";

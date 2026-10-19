@@ -354,9 +354,13 @@ with exactly the same protocol: sales only, quantile chosen on the four 2023 bac
 
 - **Once calibrated, t0-gamma scores better than the competition winner**, with almost no bias. Its median alone is
   worse than Timestral's (bias −9.5%): the choice of the quantile matters even more for it.
-- On M5, sales only, t0-gamma also does better than Timestral 28M sales only (WRMSSE 0.639 against 0.673), but
-  Timestral 28M with the calendar stays ahead (0.615). Its quantiles are a little less accurate (WSPL 0.170 against
-  0.162).
+- **With the calendar, t0-gamma is the best foundation model on M5 here**: WRMSSE 0.596 against 0.615 for Timestral
+  28M with the calendar (0.639 for t0-gamma with sales only). Its quantiles are then as accurate as Timestral 28M's
+  (WSPL 0.161 against 0.162); Timestral 209M stays ahead on quantiles (0.154). t0-gamma receives the calendar as
+  numbers (SNAP days, event day, day of week), Timestral also gets the event names.
+- **On VN1, the e-commerce calendar does not help t0-gamma either**: 0.496 with the calendar against 0.448 without,
+  once calibrated. The backtests rated the two versions almost the same (0.513 and 0.518): choosing one quantile on
+  backtests is robust, choosing between model versions on them is much less so.
 - **Same caution as for Timestral**: VN1 and M5 have been public for years, and nothing here says whether they were
   part of t0-gamma's training data. A dataset never published is the only clean test.
 
@@ -454,9 +458,14 @@ appliqué une seule fois aux semaines de test.
 
 - **Une fois calibré, t0-gamma fait mieux que le vainqueur du concours**, presque sans biais. Sa médiane seule est
   moins bonne que celle de Timestral (biais −9,5 %) : le choix du quantile compte encore plus pour lui.
-- Sur M5, ventes seules, t0-gamma fait aussi mieux que Timestral 28M ventes seules (WRMSSE 0,639 contre 0,673), mais
-  Timestral 28M avec le calendrier reste devant (0,615). Ses quantiles sont un peu moins précis (WSPL 0,170 contre
-  0,162).
+- **Avec le calendrier, t0-gamma est ici le meilleur modèle de fondation sur M5** : WRMSSE 0,596 contre 0,615 pour
+  Timestral 28M avec calendrier (0,639 pour t0-gamma avec les ventes seules). Ses quantiles sont alors aussi précis que
+  ceux de Timestral 28M (WSPL 0,161 contre 0,162) ; Timestral 209M reste devant sur les quantiles (0,154). t0-gamma
+  reçoit le calendrier sous forme de nombres (jours SNAP, jour d'événement, jour de la semaine), Timestral reçoit aussi
+  le nom des événements.
+- **Sur VN1, le calendrier e-commerce n'aide pas non plus t0-gamma** : 0,496 avec calendrier contre 0,448 sans, une
+  fois calibré. Les backtests notaient pourtant les deux versions presque à égalité (0,513 et 0,518) : choisir un
+  quantile sur backtests est robuste, choisir entre deux versions de modèle l'est beaucoup moins.
 - **Même prudence que pour Timestral** : VN1 et M5 sont publics depuis des années, et rien ici ne dit s'ils faisaient
   partie des données d'entraînement de t0-gamma. Seul un jeu jamais publié permettrait un test propre.
 
